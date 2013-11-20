@@ -1,0 +1,11 @@
+name = Belgian National Number Field
+package = Fedict
+description = Defines the Belgian National Number field. Applies one-way encryption for secure storage.
+core = 7.x
+
+files[] = fedict_national_number.module
+files[] = fedict_national_number.install
+
+dependencies[] = field
+dependencies[] = field_sql_storage
+
