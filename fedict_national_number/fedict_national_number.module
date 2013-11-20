@@ -66,9 +66,9 @@ function fedict_national_number_field_widget_form(&$form, &$form_state, $field, 
     $description = (empty($element[$dsc_key])) ? $default_dsc : $element[$dsc_key];
     $weight      = (isset($element['#weight'])) ? $element['#weight'] : 0;
 
-    $natnumfield    = field_get_items($element['#entity_type'], $element['#entity'], $element['#field_name']);
+    $natnumfield = field_get_items($element['#entity_type'], $element['#entity'], $element['#field_name']);
     if (isset($natnumfield[$delta]['fedict_national_number'])) {
-      $title = filter_xss($element['#title']) . t(' (defined, will remain unchanged if left blank)');
+      $title = filter_xss($element['#title']) . t(' (Already defined. Will remain unchanged if left blank.)');
     }
     else {
       $title = filter_xss($element['#title']);
