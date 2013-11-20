@@ -53,19 +53,13 @@ function fedict_national_number_field_formatter_view($entity_type, $entity, $fie
  * Implements hook_field_widget_form().
  */
 function fedict_national_number_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
-  $field_name = $field['field_name'];
-  $field_type = $field['type'];
-
-  $default_natnum = $instance['default_value'][0][$field_type][$field_type];
-
-
   if ($instance['widget']['type'] === 'fedict_national_number') {
-
     $dsc_key     = '#description';
     $default_dsc = t('Belgian National Number will remain unchanged if left blank.');
     $description = (empty($element[$dsc_key])) ? $default_dsc : $element[$dsc_key];
     $weight      = (isset($element['#weight'])) ? $element['#weight'] : 0;
 
+    // Set up title.
     $natnumfield = field_get_items($element['#entity_type'], $element['#entity'], $element['#field_name']);
     if (isset($natnumfield[$delta]['fedict_national_number'])) {
       $title = filter_xss($element['#title']) . t(' (Already defined. Will remain unchanged if left blank.)');
@@ -73,6 +67,11 @@ function fedict_national_number_field_widget_form(&$form, &$form_state, $field, 
     else {
       $title = filter_xss($element['#title']);
     }
+
+    // Set up default value.
+    $field_name = $field['field_name'];
+    $field_type = $field['type'];
+    $default_natnum = $instance['default_value'][0][$field_type][$field_type];
 
     $element['fedict_national_number'] = array(
       '#type'             => 'textfield',
@@ -193,6 +192,7 @@ function _fedict_national_number_validate($element, &$form_state) {
     return;
   }
 
+  // Validate number, hash it and set it in the form.
   try {
     $national_number = fedict_national_number_validate_and_sanitize($element['#value']);
     // If a new National Number value has been entered, hash it before saving.
@@ -217,15 +217,16 @@ function _fedict_national_number_validate($element, &$form_state) {
  *
  * @return bool
  *   TRUE if match, FALSE if no match.
+ *
+ * @see _fedict_national_number_hash()
  */
 function fedict_national_number_match($national_number, $stored_hash) {
   require_once 'includes/password.inc';
-  if (substr($stored_hash, 0, 3) != '$S$') {
-    return FALSE;
-  }
+  // Pepper the national number so we can calculate the hash.
   $pepper = drupal_get_hash_salt();
   $peppered_national_number = hash_hmac('sha512', $national_number, $pepper);
-  // See user_check_password().
+  // The following 2 lines do the same as user_check_password(), except they
+  // use our peppered national number as "password":
   $hash = _password_crypt('sha512', $peppered_national_number, $stored_hash);
   return ($hash && $stored_hash == $hash);
 }
@@ -268,6 +269,7 @@ function _fedict_national_number_hash($national_number) {
  *   if invalid National Number.
  */
 function fedict_national_number_validate_and_sanitize($national_number) {
+  // Check for non allowed characters (ie. not numbers, spaces, dots or dashes)
   $allowed_characters_pattern = "/^[0-9\ \-\.]+$/";
   $non_numeric_pattern = "/\D/";
 
