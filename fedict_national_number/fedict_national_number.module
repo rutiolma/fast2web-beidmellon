@@ -68,15 +68,15 @@ function fedict_national_number_field_widget_form(&$form, &$form_state, $field, 
 
     $natnumfield    = field_get_items($element['#entity_type'], $element['#entity'], $element['#field_name']);
     if (isset($natnumfield[$delta]['fedict_national_number'])) {
-      $natnum_defined = TRUE;
+      $title = filter_xss($element['#title']) . t(' (defined, will remain unchanged if left blank)');
     }
     else {
-      $natnum_defined = FALSE;
+      $title = filter_xss($element['#title']);
     }
 
     $element['fedict_national_number'] = array(
       '#type'             => 'textfield',
-      '#title'            => filter_xss($element['#title']) . ($natnum_defined ? t(' (defined, will remain unchanged if left blank)') : ''),
+      '#title'            => $title,
       '#description'      => filter_xss($description),
       // Number has 11 digits but we allow for 4 dashes/points.
       '#maxlength'        => 15,
@@ -170,9 +170,9 @@ function _fedict_national_number_load_current_value($element, $form_state) {
   $delta         = $field_details['delta'];
 
   // Load the field instance from DB and get the value.
-  $natnumfield    = field_get_items($entity_type, $entity, $field_name);
-  $natnumvalue    = (isset($natnumfield[$delta]['fedict_national_number']))
-              ? $natnumfield[$delta]['fedict_national_number'] : NULL;
+  $natnumfield   = field_get_items($entity_type, $entity, $field_name);
+  $natnumvalue   = (isset($natnumfield[$delta]['fedict_national_number']))
+                     ? $natnumfield[$delta]['fedict_national_number'] : NULL;
   return $natnumvalue;
 }
 
@@ -224,7 +224,7 @@ function fedict_national_number_match($national_number, $stored_hash) {
     return FALSE;
   }
   $pepper = drupal_get_hash_salt();
-  $peppered_national_number = hash_hmac('sha256', $national_number, $pepper);
+  $peppered_national_number = hash_hmac('sha512', $national_number, $pepper);
   // See user_check_password().
   $hash = _password_crypt('sha512', $peppered_national_number, $stored_hash);
   return ($hash && $stored_hash == $hash);
@@ -248,7 +248,7 @@ function _fedict_national_number_hash($national_number) {
   require_once 'includes/password.inc';
   // See http://security.stackexchange.com/questions/3272/password-hashing-add-salt-pepper-or-is-salt-enough
   $pepper = drupal_get_hash_salt();
-  $peppered_national_number = hash_hmac('sha256', $national_number, $pepper);
+  $peppered_national_number = hash_hmac('sha512', $national_number, $pepper);
   return user_hash_password($peppered_national_number);
 }
 
