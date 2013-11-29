@@ -49,7 +49,7 @@ function fedict_beidmellon_permission() {
  */
 function fedict_beidmellon_get_account_from_env() {
   // dummys fedid
-  $_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'] = 'g3znpx548CxXH3KwiaAjZyqj69WnSUk90dmowtlb';
+  //$_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'] = 'g3znpx548CxXH3KwiaAjZyqj69WnSUk90dmowtlb';
   if (!empty($_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'])) {
     $fedid = $_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'];
     return fedict_beidmellon_user_load_by_fedid($fedid);
