@@ -1,0 +1,13 @@
+name = Belgian FedID Field
+package = Fedict
+description = Defines the Belgian FedID field. Applies one-way encryption for secure storage.
+core = 7.x
+
+files[] = fedict_fedid.module
+files[] = fedict_fedid.install
+files[] = lib/PBKDF2.class.php
+files[] = lib/PBKDF2_Fixed_Salt.class.php
+
+dependencies[] = field
+dependencies[] = field_sql_storage
+

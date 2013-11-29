@@ -1,0 +1,183 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function fedict_beidmellon_menu() {
+  $items['beid/authenticate'] = array(
+      'title' => 'beID authentication',
+      'page callback' => 'fedict_beidmellon_authenticate',
+      'access callback' => TRUE,
+      'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_menu_alter().
+ */
+function fedict_beidmellon_menu_alter(&$items) {
+  // Override password reset callback
+  $items['user/reset/%/%/%']['page arguments'] = array('fedict_beidmellon_pass_reset', 2, 3, 4);
+}
+
+function fedict_beidmellon_pass_reset($form, &$form_state, $uid, $timestamp, $hashed_pass, $action = NULL) {
+  // The fedict_beidmellon_validate() validation function expects the uid to be
+  // in $form_state['uid']
+  $form_state['uid'] = $uid;
+  fedict_beidmellon_validate($form, $form_state);
+  return user_pass_reset($form, $form_state, $uid, $timestamp, $hashed_pass, $action);
+}
+
+/**
+ * Implements hook_permssion().
+ */
+function fedict_beidmellon_permission() {
+  return array(
+    'bypass beid authentication' => array(
+      'title' => t('Bypass beID authentication'),
+      'description' => t('Bypass the forced beID authentication and log in with username/password instead'),
+    ),
+  );
+}
+
+/**
+ * Helper function to check server environment for FedID:
+ *
+ * @return object|bool
+ *   user object if match, FALSE if no match.
+ */
+function fedict_beidmellon_get_account_from_env() {
+  // dummys fedid
+  $_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'] = 'g3znpx548CxXH3KwiaAjZyqj69WnSUk90dmowtlb';
+  if (!empty($_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'])) {
+    $fedid = $_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'];
+    return fedict_beidmellon_user_load_by_fedid($fedid);
+  }
+  return FALSE;
+}
+
+/**
+ * Authenticate against the server environment variables.
+ */
+function fedict_beidmellon_authenticate() {
+  if ($account = fedict_beidmellon_get_account_from_env()) {
+    $form_state = array('uid' => $account->uid);
+    user_login_submit(array(), $form_state);
+  }
+  else {
+    // If we have come this far, we did not manage to log in properly.
+    drupal_access_denied();
+  }
+}
+
+/**
+ * Implements hook_user_login().
+ */
+function fedict_beidmellon_user_login(&$edit, $account) {
+  // Double protection to make sure people who somehow still got logged in
+  // did so with the right authorization.
+  if (user_access('bypass beid authentication', $account)) {
+    return;
+  }
+  $env_account = fedict_beidmellon_get_account_from_env();
+  if (empty($env_account->uid) || empty($account->uid) || $account->uid != $env_account->uid) {
+    module_load_include('pages.inc', 'user', 'user');
+    user_logout();
+  }
+}
+
+/**
+ * Implements hook_form_alter
+ */
+function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
+  switch ($form_id) {
+    case 'user_login': // user login page
+      $form['eid_link'] = array(
+        '#markup' => l(t('Login using eID'), variable_get('beidmellon_login_url', 'beid/login')),
+        '#weight' => 10,
+      );
+      // No break. Pass:
+    case 'user_register_form': // user register page
+    case 'user_pass_reset': // user
+      $form['#validate'][] = 'fedict_beidmellon_validate';
+      break;
+    case 'user_profile_form': // one-time login, password reset
+      if (isset($_GET['pass-reset-token'])) {
+        $form['#validate'][] = 'fedict_beidmellon_validate';
+      }
+      break;
+    case 'user_login_block':
+      // copied from user.module, added another link.
+      $items = array();
+      if (variable_get('user_register', USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL)) {
+        $items[] = l(t('Create new account'), 'user/register', array('attributes' => array('title' => t('Create a new user account.'))));
+      }
+      $items[] = l(t('Request new password'), 'user/password', array('attributes' => array('title' => t('Request new password via e-mail.'))));
+      $items[] = l(t('Login using eID'), variable_get('beidmellon_login_url', 'beid/login'));
+
+      $form['links'] = array('#markup' => theme('item_list', array('items' => $items)));
+      $form['#validate'][] = 'fedict_beidmellon_validate';
+      break;
+  }
+}
+
+/**
+ * Helper submit function.
+ */
+function fedict_beidmellon_validate($form, &$form_state) {
+  global $user;
+  if (!empty($user->uid)) {
+    $account = $user;
+  }
+  else {
+    $account = user_load($form_state['uid']);
+  }
+  if (user_access('bypass beid authentication', $account)) {
+    return;
+  }
+
+  if (isset($form['#form_id']) && $form['#form_id'] == 'user_register_form') {
+    // Do not allow people to be logged in automatically immediately after registration.
+    drupal_set_message(t('Sorry, we can not automatically log you in after registration. Please login using eID.'), 'warning');
+    drupal_goto();
+  }
+  else {
+    $env_account = fedict_beidmellon_get_account_from_env();
+    if (empty($env_account->uid) || empty($account->uid) || $env_account->uid != $account->uid) {
+      form_set_error('name', t('Sorry, this user can not login with a username/password. Please login using eID.'));
+      drupal_goto();
+    }
+  }
+}
+
+/**
+ * Implements hook_user_logout().
+ */
+function fedict_beidmellon_user_logout() {
+  if (!empty($_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'])) {
+    $logout_url = variable_get('beidmellon_logout_url', 'beid/logout');
+    $_GET['destination'] = $logout_url;
+  }
+}
+
+/**
+ * Load the user object given a certain FedID.
+ *
+ * @param unknown $fedid
+ * @return A|boolean
+ */
+function fedict_beidmellon_user_load_by_fedid($fedid) {
+  $fedid_hashed = _fedict_fedid_hash($fedid);
+  $query = new EntityFieldQuery;
+  $query->entityCondition('entity_type', 'user')
+    ->fieldCondition('field_fedid', 'fedict_fedid', $fedid_hashed)
+    ->propertyOrderBy('created', 'DESC');
+  $result = $query->execute();
+  if (isset($result['user'])) {
+    $user_uids = array_keys($result['user']);
+    $uid = reset($user_uids);
+    return user_load($uid);
+  }
+  return FALSE;
+}

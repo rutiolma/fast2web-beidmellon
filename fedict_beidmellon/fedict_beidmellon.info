@@ -1,0 +1,9 @@
+name = beID Mellon Authentication
+package = Fedict
+description = Drupal authentication using beID/Mellon
+core = 7.x
+
+files[] = fedict_beidmellon.module
+files[] = fedict_beidmellon.install
+
+dependencies[] = fedict_fedid

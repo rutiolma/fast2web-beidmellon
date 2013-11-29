@@ -1,9 +1,0 @@
-name = eID Mellon Authentication
-package = Fedict
-description = Drupal authenticating using eID/Mellon
-core = 7.x
-
-files[] = fedict_mellon_auth.module
-files[] = fedict_mellon_auth.install
-
-dependencies[] = fedict_national_number

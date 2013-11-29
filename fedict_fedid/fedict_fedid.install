@@ -1,0 +1,39 @@
+<?php
+/**
+ * @file
+ * fedict_fedid.install
+ */
+
+/**
+ * Implements hook_requirements().
+ */
+function fedict_fedid_requirements($phase) {
+  $t = get_t();
+  $requirements = array();
+  if (empty($GLOBALS['fedict_fedid_salt'])) {
+    $requirements['fedict_fedid'] = array(
+      'title'      => $t('FedID: $fedict_fedid_salt in settings.php'),
+      'value'      => $t('Not found'),
+      'severity'   => REQUIREMENT_ERROR,
+      'description' => $t('The $fedict_fedid_salt variable is not defined in settings.php. Please set this up with a secure salt.'),
+    );
+  }
+  return $requirements;
+}
+
+/**
+ * Create the National Number database table.
+ *
+ * Implements hook_field_schema
+ */
+function fedict_fedid_field_schema($field) {
+  return array(
+    'columns' => array(
+      'fedict_fedid' => array(
+        'type'     => 'text',
+        'not null' => FALSE,
+        'default'  => NULL,
+      ),
+    ),
+  );
+}
