@@ -12,10 +12,10 @@ function fedict_fedid_requirements($phase) {
   $requirements = array();
   if (empty($GLOBALS['fedict_fedid_salt'])) {
     $requirements['fedict_fedid'] = array(
-      'title'      => $t('FedID: $fedict_fedid_salt in settings.php'),
-      'value'      => $t('Not found'),
-      'severity'   => REQUIREMENT_ERROR,
-      'description' => $t('The $fedict_fedid_salt variable is not defined in settings.php. Please set this up with a secure salt.'),
+      'title'       => $t('FedID salt in settings.php'),
+      'value'       => $t('Not found'),
+      'severity'    => REQUIREMENT_ERROR,
+      'description' => $t('The FedID salt is not defined in settings.php. Please set this up with a secure salt such as $GLOBALS[\'fedict_fedid_salt\'] = \'%salt\';', array('%salt' => drupal_random_key())),
     );
   }
   return $requirements;
