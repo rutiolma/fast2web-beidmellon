@@ -187,6 +187,9 @@ function _fedict_fedid_validate($element, &$form_state) {
       throw new Exception(t("Length of the FedID is not 40 characters."));
     }
 
+    // Hash the fedid.
+    $value = _fedict_fedid_hash($fedid);
+
     // If this is a user field, make sure it's unique.
     $field_details = _fedict_fedid_get_instance_details($element, $form_state);
     $entity_type   = $field_details['entity_type'];
@@ -208,8 +211,7 @@ function _fedict_fedid_validate($element, &$form_state) {
       }
     }
 
-    // If a new FedID value has been entered, hash it before saving.
-    $value = _fedict_fedid_hash($fedid);
+
     form_set_value($element, array('fedict_fedid' => $value), $form_state);
 
   }

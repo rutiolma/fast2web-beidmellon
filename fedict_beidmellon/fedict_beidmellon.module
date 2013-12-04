@@ -81,7 +81,7 @@ function fedict_beidmellon_boot() {
   $path = explode('/', $_GET['q']);
   $prefixless = NULL;
   if (sizeof($path) > 2) {
-    // strip the prefix
+    // Strip the prefix
     unset($path[0]);
     $prefixless = implode('/', $path);
   }
@@ -89,8 +89,8 @@ function fedict_beidmellon_boot() {
   // Set up redirect for login page
   $url = $GLOBALS['base_url'] . '/beid/login';
   if (($prefixless == 'beid/login' || $_GET['q'] == 'beid/login') && $GLOBALS['base_root'] . request_uri() != $url) {
-    header('Location: ' . $url . '?ReturnTo=' . $GLOBALS['base_url'], TRUE, 302);
-    drupal_exit($url);
+    header('Location: ' . $url, TRUE, 302);
+    exit;
   }
 }
 
@@ -204,7 +204,6 @@ function fedict_beidmellon_validate($form, &$form_state) {
  * Implements hook_user_logout().
  */
 function fedict_beidmellon_user_logout() {
-  $_GET['destination'] = 'beid/logout';
   if (!empty($_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'])) {
     $_GET['destination'] = 'beid/logout';
   }
@@ -213,8 +212,8 @@ function fedict_beidmellon_user_logout() {
 /**
  * Load the user object given a certain FedID.
  *
- * @param unknown $fedid
- * @return A|boolean
+ * @param string $fedid
+ * @return object|boolean
  */
 function fedict_beidmellon_user_load_by_fedid($fedid) {
   $fedid_hashed = _fedict_fedid_hash($fedid);

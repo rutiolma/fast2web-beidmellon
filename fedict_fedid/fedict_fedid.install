@@ -8,6 +8,7 @@
  * Implements hook_requirements().
  */
 function fedict_fedid_requirements($phase) {
+  require_once DRUPAL_ROOT . '/includes/bootstrap.inc';
   $t = get_t();
   $requirements = array();
   if (empty($GLOBALS['fedict_fedid_salt'])) {
