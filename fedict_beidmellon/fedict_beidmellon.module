@@ -1,14 +1,25 @@
 <?php
 
 /**
+ * Relevant URLs:
+ *
+ * beid/login
+ * beid/logout -> mellon/logout
+ */
+
+/**
  * Implements hook_menu().
  */
 function fedict_beidmellon_menu() {
-  $items['beid/authenticate'] = array(
-      'title' => 'beID authentication',
-      'page callback' => 'fedict_beidmellon_authenticate',
-      'access callback' => TRUE,
-      'type' => MENU_CALLBACK,
+  $items['beid/login'] = array(
+    'page callback' => 'fedict_beidmellon_beid_login',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  $items['beid/logout'] = array(
+    'page callback' => 'fedict_beidmellon_beid_logout',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
   );
   return $items;
 }
@@ -21,6 +32,9 @@ function fedict_beidmellon_menu_alter(&$items) {
   $items['user/reset/%/%/%']['page arguments'] = array('fedict_beidmellon_pass_reset', 2, 3, 4);
 }
 
+/**
+ * Implements hook_pass_reset().
+ */
 function fedict_beidmellon_pass_reset($form, &$form_state, $uid, $timestamp, $hashed_pass, $action = NULL) {
   // The fedict_beidmellon_validate() validation function expects the uid to be
   // in $form_state['uid']
@@ -48,27 +62,62 @@ function fedict_beidmellon_permission() {
  *   user object if match, FALSE if no match.
  */
 function fedict_beidmellon_get_account_from_env() {
-  // dummys fedid
-  //$_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'] = 'g3znpx548CxXH3KwiaAjZyqj69WnSUk90dmowtlb';
-  if (!empty($_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'])) {
-    $fedid = $_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'];
+  // fake fedid
+  // $_SERVER['MELLON_urn_be_fedict_iam_attr_fedid'] = '2234567890abcdef123456789012345678901234';
+  if (!empty($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid'])) {
+    $fedid = $_SERVER['MELLON_urn_be_fedict_iam_attr_fedid'];
     return fedict_beidmellon_user_load_by_fedid($fedid);
   }
   return FALSE;
 }
 
+function fedict_beidmellon_boot() {
+  // Disable global redirect for login path:
+  if ($_GET['q'] == 'beid/login') {
+    $_POST['global_redirect'] = 'Disabled';
+  }
+
+  // Get the prefixless URL
+  $path = explode('/', $_GET['q']);
+  $prefixless = NULL;
+  if (sizeof($path) > 2) {
+    // strip the prefix
+    unset($path[0]);
+    $prefixless = implode('/', $path);
+  }
+
+  // Set up redirect for login page
+  $url = $GLOBALS['base_url'] . '/beid/login';
+  if (($prefixless == 'beid/login' || $_GET['q'] == 'beid/login') && $GLOBALS['base_root'] . request_uri() != $url) {
+    header('Location: ' . $url . '?ReturnTo=' . $GLOBALS['base_url'], TRUE, 302);
+    drupal_exit($url);
+  }
+}
+
 /**
- * Authenticate against the server environment variables.
+ * Page callback for beID login
  */
-function fedict_beidmellon_authenticate() {
+function fedict_beidmellon_beid_login() {
   if ($account = fedict_beidmellon_get_account_from_env()) {
     $form_state = array('uid' => $account->uid);
     user_login_submit(array(), $form_state);
+    drupal_goto($form_state['redirect']);
   }
   else {
-    // If we have come this far, we did not manage to log in properly.
+    drupal_set_message(t('The beID authentication was unsuccessful.'), 'error');
     drupal_access_denied();
   }
+}
+
+
+/**
+ * Page callback for beID logout. Redirects to mellon logout.
+ */
+function fedict_beidmellon_beid_logout() {
+  drupal_goto($GLOBALS['base_url'] . '/mellon/logout', array(
+    'external' => TRUE,
+    'query' => array('ReturnTo' => $GLOBALS['base_url']),
+  ));
 }
 
 /**
@@ -94,7 +143,7 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
   switch ($form_id) {
     case 'user_login': // user login page
       $form['eid_link'] = array(
-        '#markup' => l(t('Login using eID'), variable_get('beidmellon_login_url', 'beid/login')),
+        '#markup' => l(t('Login using eID'), 'beid/login'),
         '#weight' => 10,
       );
       // No break. Pass:
@@ -114,7 +163,7 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
         $items[] = l(t('Create new account'), 'user/register', array('attributes' => array('title' => t('Create a new user account.'))));
       }
       $items[] = l(t('Request new password'), 'user/password', array('attributes' => array('title' => t('Request new password via e-mail.'))));
-      $items[] = l(t('Login using eID'), variable_get('beidmellon_login_url', 'beid/login'));
+      $items[] = l(t('Login using eID'), 'beid/login');
 
       $form['links'] = array('#markup' => theme('item_list', array('items' => $items)));
       $form['#validate'][] = 'fedict_beidmellon_validate';
@@ -155,9 +204,9 @@ function fedict_beidmellon_validate($form, &$form_state) {
  * Implements hook_user_logout().
  */
 function fedict_beidmellon_user_logout() {
+  $_GET['destination'] = 'beid/logout';
   if (!empty($_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'])) {
-    $logout_url = variable_get('beidmellon_logout_url', 'beid/logout');
-    $_GET['destination'] = $logout_url;
+    $_GET['destination'] = 'beid/logout';
   }
 }
 

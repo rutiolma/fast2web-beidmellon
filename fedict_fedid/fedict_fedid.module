@@ -31,25 +31,6 @@ function fedict_fedid_field_formatter_info() {
 }
 
 /**
- * Implements hook_field_formatter_view().
- */
-function fedict_fedid_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
-  $element = array();
-
-  switch ($display['type']) {
-    case 'fedict_fedid_formatter':
-      foreach ($items as $delta => $item) {
-        if (!empty($item['fedict_fedid'])) {
-          $fed_id_out = '••••••••••••••••';
-          $element[$delta]['#markup'] = '<span>' . $fed_id_out . '</span>';
-        }
-      }
-      break;
-  }
-  return $element;
-}
-
-/**
  * Implements hook_field_widget_form().
  */
 function fedict_fedid_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
@@ -193,21 +174,18 @@ function _fedict_fedid_validate($element, &$form_state) {
   // Validate number, hash it and set it in the form.
   try {
     $fedid = $element['#value'];
+
     // Check for non allowed characters (ie. not numbers, spaces, dots or dashes)
     $allowed_characters_pattern = "/^[0-9A-z]+$/";
 
     if (preg_match($allowed_characters_pattern, $fedid) != 1) {
       throw new Exception(t("Non allowed character in FedID."));
     }
-    else {
-      // Length must be 40 characters.
-      if (strlen($fedid) != 40) {
-        throw new Exception(t("Length of the FedID is not 40 characters."));
-      }
+
+    // Length must be 40 characters.
+    if (strlen($fedid) != 40) {
+      throw new Exception(t("Length of the FedID is not 40 characters."));
     }
-    // If a new FedID value has been entered, hash it before saving.
-    $value = _fedict_fedid_hash($fedid);
-    form_set_value($element, array('fedict_fedid' => $value), $form_state);
 
     // If this is a user field, make sure it's unique.
     $field_details = _fedict_fedid_get_instance_details($element, $form_state);
@@ -226,12 +204,17 @@ function _fedict_fedid_validate($element, &$form_state) {
         ->count();
       $count = $query->execute();
       if ($count > 0) {
-        form_set_error($field_details['field_name'], 'The submitted FedID is already being used by another account. It is not possible to have more than one account with the same FedID:');
+        throw new Exception(t('The submitted FedID is already being used by another account. It is not possible to have more than one account with the same FedID:'));
       }
     }
+
+    // If a new FedID value has been entered, hash it before saving.
+    $value = _fedict_fedid_hash($fedid);
+    form_set_value($element, array('fedict_fedid' => $value), $form_state);
+
   }
   catch (Exception $e) {
-    form_error($element, t('Invalid FedID: ' . $e->getMessage()));
+    form_error($element, t('FedID error: ' . $e->getMessage()));
   }
 
 
@@ -276,7 +259,7 @@ function _fedict_fedid_hash($fedid) {
 
 /**
  * Helper function which instantiates a PBKDF2_Fixed_Salt class using the
- * $fedict_fedid_salt global.
+ * $fedict_fedid_salt global variable.
  *
  * @return object
  *   PBKDF2_Fixed_Salt

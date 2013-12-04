@@ -33,6 +33,19 @@ function fedict_beidmellon_install() {
         'type' => 'textfield',
         'weight' => '1',
       ),
+      'display' => array(
+        'default' => array(
+          'label' => 'hidden',
+          'settings' => array(),
+          'weight' => 1,
+          'type' => 'hidden'
+        ),
+        'teaser' => array(
+          'label' => 'hidden',
+          'settings' => array(),
+          'type' => 'hidden',
+        ),
+      ),
     );
     field_create_instance($instance);
   }
