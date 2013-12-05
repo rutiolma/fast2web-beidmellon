@@ -75,12 +75,20 @@ function fedict_beidmellon_get_account_from_env() {
   return FALSE;
 }
 
+/**
+ * Implements hook_boot().
+ */
 function fedict_beidmellon_boot() {
   // Disable global redirect for login path:
   if ($_GET['q'] == 'beid/login') {
     $_POST['global_redirect'] = 'Disabled';
   }
+}
 
+/**
+ * Implements hook_init().
+ */
+function fedict_beidmellon_init() {
   // Get the prefixless URL
   $path = explode('/', $_GET['q']);
   $prefixless = NULL;
@@ -93,8 +101,7 @@ function fedict_beidmellon_boot() {
   // Set up redirect for login page
   $url = $GLOBALS['base_url'] . '/beid/login';
   if (($prefixless == 'beid/login' || $_GET['q'] == 'beid/login') && $GLOBALS['base_root'] . request_uri() != $url) {
-    header('Location: ' . $url, TRUE, 302);
-    exit;
+    drupal_goto($url, array('external' => TRUE));
   }
 }
 
@@ -144,10 +151,11 @@ function fedict_beidmellon_user_login(&$edit, $account) {
  * Implements hook_form_alter
  */
 function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
+  $destination = drupal_get_destination();
   switch ($form_id) {
     case 'user_login': // user login page
       $form['eid_link'] = array(
-        '#markup' => l(t('Login using eID'), 'beid/login'),
+        '#markup' => l(t('Login using eID'), 'beid/login', array('query' => $destination)),
         '#weight' => 10,
       );
       // No break. Pass:
@@ -167,7 +175,7 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
         $items[] = l(t('Create new account'), 'user/register', array('attributes' => array('title' => t('Create a new user account.'))));
       }
       $items[] = l(t('Request new password'), 'user/password', array('attributes' => array('title' => t('Request new password via e-mail.'))));
-      $items[] = l(t('Login using eID'), 'beid/login');
+      $items[] = l(t('Login using eID'), 'beid/login', array('query' => $destination));
 
       $form['links'] = array('#markup' => theme('item_list', array('items' => $items)));
       $form['#validate'][] = 'fedict_beidmellon_validate';
