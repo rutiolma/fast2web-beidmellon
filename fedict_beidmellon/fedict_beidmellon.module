@@ -98,7 +98,15 @@ function fedict_beidmellon_boot() {
  * Page callback for beID login
  */
 function fedict_beidmellon_beid_login() {
+  $debug_mode = variable_get('fedict_beidmellon_guest_debug', 0);
+
   if ($account = fedict_beidmellon_get_account_from_env()) {
+    $form_state = array('uid' => $account->uid);
+    user_login_submit(array(), $form_state);
+    drupal_goto($form_state['redirect']);
+  }
+  elseif ($debug_mode == 1) {
+    $account = user_load_by_name('guest');
     $form_state = array('uid' => $account->uid);
     user_login_submit(array(), $form_state);
     drupal_goto($form_state['redirect']);
