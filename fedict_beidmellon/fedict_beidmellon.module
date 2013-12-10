@@ -4,7 +4,6 @@
  * Relevant URLs:
  *
  * beid/login
- * beid/logout -> mellon/logout
  */
 
 /**
@@ -13,11 +12,6 @@
 function fedict_beidmellon_menu() {
   $items['beid/login'] = array(
     'page callback' => 'fedict_beidmellon_beid_login',
-    'access callback' => TRUE,
-    'type' => MENU_CALLBACK,
-  );
-  $items['beid/logout'] = array(
-    'page callback' => 'fedict_beidmellon_beid_logout',
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
@@ -120,17 +114,6 @@ function fedict_beidmellon_beid_login() {
   }
 }
 
-
-/**
- * Page callback for beID logout. Redirects to mellon logout.
- */
-function fedict_beidmellon_beid_logout() {
-  drupal_goto($GLOBALS['base_url'] . '/mellon/logout', array(
-    'external' => TRUE,
-    'query' => array('ReturnTo' => $GLOBALS['base_url']),
-  ));
-}
-
 /**
  * Implements hook_user_login().
  */
@@ -209,15 +192,6 @@ function fedict_beidmellon_validate($form, &$form_state) {
       form_set_error('name', t('Sorry, this user can not login with a username/password. Please login using eID.'));
       drupal_goto();
     }
-  }
-}
-
-/**
- * Implements hook_user_logout().
- */
-function fedict_beidmellon_user_logout() {
-  if (!empty($_SERVER['MELLON_urn:be:fedict:iam:attr:fedid'])) {
-    $_GET['destination'] = 'beid/logout';
   }
 }
 
