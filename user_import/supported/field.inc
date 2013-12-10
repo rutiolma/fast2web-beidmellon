@@ -210,9 +210,9 @@ function field_user_import_fedict_fedid_processor($user_fields, $field_name, $va
       throw new Exception(t("Non allowed character in FedID."));
     }
     else {
-      // Length must be 40 characters.
-      if (strlen($fedid) != 40) {
-        throw new Exception(t("Length of the FedID is not 40 characters."));
+      // Length must be 40 characters or less.
+      if (strlen($fedid) > 40) {
+        throw new Exception(t("Length of the FedID is not 40 characters or less."));
       }
     }
     $query = new EntityFieldQuery;

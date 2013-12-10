@@ -182,9 +182,9 @@ function _fedict_fedid_validate($element, &$form_state) {
       throw new Exception(t("Non allowed character in FedID."));
     }
 
-    // Length must be 40 characters.
-    if (strlen($fedid) != 40) {
-      throw new Exception(t("Length of the FedID is not 40 characters."));
+    // Length must be 40 characters or less.
+    if (strlen($fedid) > 40) {
+      throw new Exception(t("Length of the FedID is not 40 characters or less."));
     }
 
     // Hash the fedid.
