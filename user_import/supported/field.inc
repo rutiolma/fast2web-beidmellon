@@ -215,9 +215,13 @@ function field_user_import_fedict_fedid_processor($user_fields, $field_name, $va
         throw new Exception(t("Length of the FedID is not 40 characters or less."));
       }
     }
+
+    // Hash the fedid.
+    $value = _fedict_fedid_hash($fedid);
+
     $query = new EntityFieldQuery;
     $query->entityCondition('entity_type', 'user')
-    ->fieldCondition($field_name, 'fedict_fedid', $fedid)
+    ->fieldCondition($field_name, 'fedict_fedid', $value)
     ->propertyCondition('uid', $user_fields->uid, '!=')
     ->count();
     $count = $query->execute();
@@ -225,7 +229,7 @@ function field_user_import_fedict_fedid_processor($user_fields, $field_name, $va
       throw new Exception(t('The submitted FedID is already being used by another account. It is not possible to have more than one account with the same FedID:'));
     }
     // SAVE
-    $field[LANGUAGE_NONE][0]['fedict_fedid'] = _fedict_fedid_hash($fedid);
+    $field[LANGUAGE_NONE][0]['fedict_fedid'] = $value;
   }
   catch (Exception $e) {
     drupal_set_message(t('The user %uid has been saved but the FedID for this user has not been saved: ', array('%uid' => $user_fields->uid)) .  $e->getMessage(), 'warning');
