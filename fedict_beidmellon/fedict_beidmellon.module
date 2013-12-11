@@ -60,8 +60,6 @@ function fedict_beidmellon_get_account_from_env() {
   if ($debug_mode == 1) {
     return user_load_by_name('guest');
   }
-  // fake fedid
-  // $_SERVER['MELLON_urn_be_fedict_iam_attr_fedid'] = '2234567890abcdef123456789012345678901234';
   if (!empty($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid'])) {
     $fedid = $_SERVER['MELLON_urn_be_fedict_iam_attr_fedid'];
     return fedict_beidmellon_user_load_by_fedid($fedid);
@@ -94,7 +92,17 @@ function fedict_beidmellon_init() {
 
   // Set up redirect for login page
   $url = $GLOBALS['base_url'] . '/beid/login';
+  if (isset($_GET['destination'])) {
+    $url = url($url, array(
+      'external' => TRUE,
+      'query' => array('destination' => $_GET['destination']),
+    ));
+  }
+  // The $GLOBALS['base_root'] . request_uri() != $url condition is to make
+  // sure the redirection did not already happen.
   if (($prefixless == 'beid/login' || $_GET['q'] == 'beid/login') && $GLOBALS['base_root'] . request_uri() != $url) {
+    // Prevent redirect to destination here. We only want to do that after login.
+    unset($_GET['destination']);
     drupal_goto($url, array('external' => TRUE));
   }
 }
