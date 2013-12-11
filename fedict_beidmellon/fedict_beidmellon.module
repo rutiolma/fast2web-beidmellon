@@ -179,10 +179,8 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
  */
 function fedict_beidmellon_validate($form, &$form_state) {
   global $user;
-  if (!empty($user->uid)) {
-    $account = $user;
-  }
-  else {
+  $account = $user;
+  if (isset($form_state['uid'])) {
     $account = user_load($form_state['uid']);
   }
   if (user_access('bypass beid authentication', $account)) {
