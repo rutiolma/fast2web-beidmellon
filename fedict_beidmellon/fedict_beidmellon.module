@@ -1,22 +1,18 @@
 <?php
 
 /**
- * Relevant URLs:
- *
- * beid/login
- */
-
-/**
  * Implements hook_menu().
  */
 function fedict_beidmellon_menu() {
-  $items['beid/login'] = array(
-    'page callback' => 'fedict_beidmellon_beid_login',
+  $items['beid/connect'] = array(
+    'page callback' => 'fedict_beidmellon_beid_connect',
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
   return $items;
 }
+
+// disable normal user registration (so people won't fake names)
 
 /**
  * Implements hook_menu_alter().
@@ -43,9 +39,13 @@ function fedict_beidmellon_pass_reset($form, &$form_state, $uid, $timestamp, $ha
 function fedict_beidmellon_permission() {
   return array(
     'bypass beid authentication' => array(
-      'title' => t('Bypass beID authentication'),
-      'description' => t('Bypass the forced beID authentication and log in with username/password instead'),
+      'title'       => t('Bypass eID authentication'),
+      'description' => t('Bypass the forced eID authentication and log in with username/password instead.'),
     ),
+    'receive beid registration notifications'   => array(
+      'title'       => t('Receive eID registration notifications'),
+      'description' => t('Anyone with this permission will receive an e-mail notification when someone self-registers using eID.'),
+    )
   );
 }
 
@@ -56,10 +56,6 @@ function fedict_beidmellon_permission() {
  *   user object if match, FALSE if no match.
  */
 function fedict_beidmellon_get_account_from_env() {
-  $debug_mode = variable_get('fedict_beidmellon_guest_debug', 0);
-  if ($debug_mode == 1) {
-    return user_load_by_name('guest');
-  }
   if (!empty($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid'])) {
     $fedid = $_SERVER['MELLON_urn_be_fedict_iam_attr_fedid'];
     return fedict_beidmellon_user_load_by_fedid($fedid);
@@ -72,7 +68,7 @@ function fedict_beidmellon_get_account_from_env() {
  */
 function fedict_beidmellon_boot() {
   // Disable global redirect for login path:
-  if ($_GET['q'] == 'beid/login') {
+  if ($_GET['q'] == 'beid/connect') {
     $_POST['global_redirect'] = 'Disabled';
   }
 }
@@ -91,35 +87,199 @@ function fedict_beidmellon_init() {
   }
 
   // Set up redirect for login page
-  $url = $GLOBALS['base_url'] . '/beid/login';
-  if (isset($_GET['destination'])) {
-    $url = url($url, array(
+  $url_login = $GLOBALS['base_url'] . '/beid/connect';
+  if (isset($_GET['destination']) && empty($_POST['form_id'])) {
+    $url = url($url_login, array(
       'external' => TRUE,
       'query' => array('destination' => $_GET['destination']),
     ));
-  }
-  // The $GLOBALS['base_root'] . request_uri() != $url condition is to make
-  // sure the redirection did not already happen.
-  if (($prefixless == 'beid/login' || $_GET['q'] == 'beid/login') && $GLOBALS['base_root'] . request_uri() != $url) {
-    // Prevent redirect to destination here. We only want to do that after login.
-    unset($_GET['destination']);
-    drupal_goto($url, array('external' => TRUE));
+    // The $GLOBALS['base_root'] . request_uri() != $url condition is to make
+    // sure the redirection did not already happen.
+    if (($prefixless == 'beid/connect' || $_GET['q'] == 'beid/connect') && $GLOBALS['base_root'] . request_uri() != $url) {
+      // Prevent redirect to destination here. We only want to do that after login.
+      unset($_GET['destination']);
+      // Redirect to beid/connect
+      drupal_goto($url, array('external' => TRUE));
+    }
   }
 }
 
 /**
- * Page callback for beID login
+ * Helper function for fedict_beidmellon_beid_connect().
  */
-function fedict_beidmellon_beid_login() {
+function _fedict_beidmellon_setup_debug() {
+  global $user;
+  // UID 1 is super user.
+  if ($user->uid == 1 && variable_get('fedict_beidmellon_fedid_debug') && variable_get('fedict_beidmellon_name_debug')) {
+    watchdog('user', 'Session closed for %name.', array('%name' => $user->name));
+    module_invoke_all('user_logout', $user);
+
+    // Destroy the current session, and reset $user to the anonymous user.
+    session_destroy();
+
+    $_SESSION['fedict_beidmellon_is_superuser'] = TRUE;
+  }
+  // So as to allow debug name/fedID:
+  if (isset($_SESSION['fedict_beidmellon_is_superuser']) && $_SESSION['fedict_beidmellon_is_superuser'] === TRUE) {
+    $_SERVER['MELLON_urn_be_fedict_iam_attr_fedid'] = variable_get('fedict_beidmellon_fedid_debug');
+    $_SERVER['MELLON_givenName'] = variable_get('fedict_beidmellon_given_name_debug');
+    $_SERVER['MELLON_surname'] = variable_get('fedict_beidmellon_surname_debug');
+  }
+}
+
+/**
+ * Page callback for eID connect (ie. login or registration, depending on whether FedID is recognized or not).
+ */
+function fedict_beidmellon_beid_connect() {
+  // Set up fake server environment variables with debug variables, if needed
+  _fedict_beidmellon_setup_debug();
+
+  // If we find the FedID back in the database:
   if ($account = fedict_beidmellon_get_account_from_env()) {
+
+    // See user_login_default_validators. Check for status & flood control.
+    if (!isset($account->status) || !$account->status) {
+      drupal_set_message(t('Hi %name, you cannot login yet. Your account is still pending activation.', array('%name' => $account->eid_name)), 'warning');
+      drupal_goto();
+    }
+
+    // Do not allow any login from the current user's IP if the limit has been
+    // reached. Default is 50 failed attempts allowed in one hour. This is
+    // independent of the per-user limit to catch attempts from one IP to log
+    // in to many different user accounts.  We have a reasonably high limit
+    // since there may be only one apparent IP for all users at an institution.
+    if (!flood_is_allowed('failed_login_attempt_ip', variable_get('user_failed_login_ip_limit', 50), variable_get('user_failed_login_ip_window', 3600))) {
+      drupal_set_message(t('Sorry, too many failed login attempts from your IP address. This IP address is temporarily blocked.'), 'error');
+      return;
+    }
+
     $form_state = array('uid' => $account->uid);
     user_login_submit(array(), $form_state);
     drupal_goto($form_state['redirect']);
   }
-  else {
-    drupal_set_message(t('The beID authentication was unsuccessful.'), 'error');
-    drupal_access_denied();
+  elseif (!empty($_SERVER['MELLON_givenName']) && !empty($_SERVER['MELLON_surname']) && !empty($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid'])) {
+    // Show email screen
+    drupal_set_title('BeID registration');
+    return drupal_get_form('fedict_beidmellon_get_email_form');
   }
+  else {
+    drupal_set_message(t('The eID authentication was unsuccessful.'), 'error');
+    drupal_access_denied();
+    drupal_goto();
+  }
+}
+
+function fedict_beidmellon_get_email_form($form, $form_state) {
+  $form = array();
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#title' => 'E-mail',
+    '#description' => t('Hi %name, please enter your work e-mail address in order to create a new account', array('%name' => $_SERVER['MELLON_givenName'] . ' ' . $_SERVER['MELLON_surname'])),
+    '#prefix' => '<div id="email-field-wrapper">',
+    '#suffix' => '</div>',
+    '#required' => TRUE,
+  );
+  $form['given_name'] = array(
+    '#value' => $_SERVER['MELLON_givenName'],
+    '#type' => 'hidden',
+  );
+  $form['surname'] = array(
+    '#value' => $_SERVER['MELLON_surname'],
+    '#type' => 'hidden',
+  );
+  $form['fedid_hashed'] = array(
+    '#value' => _fedict_fedid_hash($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid']),
+    '#type' => 'hidden',
+  );
+  $form['submit_form'] = array(
+    '#type' => 'submit',
+    '#value' => t('Next'),
+    '#submit' => array('fedict_beidmellon_get_email_form_submit'),
+  );
+  return $form;
+}
+
+function fedict_beidmellon_get_email_form_validate($form, &$form_state) {
+  $email = $form_state['values']['email'];
+  if (!valid_email_address($email)) {
+    form_set_error('email', t('Please enter a valid e-mail address.'));
+  }
+}
+
+/**
+ *
+ * @see user_register_submit().
+ */
+function fedict_beidmellon_get_email_form_submit($form, &$form_state) {
+  // Create user
+  $name = $form_state['values']['given_name'] . ' ' . $form_state['values']['surname'];
+  if (!user_load_by_name($name)) {
+    $username = $name;
+  }
+  else {
+    // Username already exists. Try to find one that doesn't exist yet.
+    for ($i = 2; $i < 1000; $i++) {
+      $username = $name . ' (' . $i .')';
+      if (!user_load_by_name($username)) {
+        break;
+      }
+    }
+  }
+
+  $password = user_password();
+  $email = $form_state['values']['email'];
+  // Set up the user fields
+  $fields = array(
+    'name'   => $username,
+    'mail'   => $email,
+    'pass'   => $password,
+    'status' => 0,
+    'init'   => $email,
+    'roles'  => array(
+      DRUPAL_AUTHENTICATED_RID => 'authenticated user',
+    ),
+    'field_fedid' => array(
+      LANGUAGE_NONE => array(
+        0 => array(
+          'fedict_fedid' => $form_state['values']['fedid_hashed'],
+         ),
+       ),
+     ),
+    'field_eid_given_name'=> array(
+      LANGUAGE_NONE => array(
+        0 => array(
+          'value' => $form_state['values']['given_name'],
+        ),
+      ),
+    ),
+    'field_eid_surname'=> array(
+      LANGUAGE_NONE => array(
+        0 => array(
+          'value' => $form_state['values']['surname'],
+        ),
+      ),
+    ),
+  );
+  $account = user_save(NULL, $fields);
+
+  // Get all active users with 'receive beid registration notifications' permission
+  $result = db_query("SELECT u.uid FROM users u
+    INNER JOIN users_roles ur ON u.uid = ur.uid
+    INNER JOIN role_permission p ON ur.rid = p.rid
+    WHERE p.permission LIKE :perm AND status = 1", array(':perm' => 'receive beid registration notifications'));
+  // Email all of them
+  foreach ($result as $record) {
+    $account = user_load($record->uid);
+    $params['account'] = $account;
+    $language = user_preferred_language($account);
+    drupal_mail('user', 'register_pending_approval_admin', variable_get('site_mail', ini_get('sendmail_from')), language_default(), $params);
+  }
+  // Email the user
+  $mail = drupal_mail('user', 'register_pending_approval', variable_get('site_mail', ini_get('sendmail_from')), $language, $params);
+  drupal_set_message(t('Thank you for applying for an account. Your account is currently pending approval by the user manager.<br />Once it has been approved, you will receive an e-mail containing further instructions.'));
+  $form_state['redirect'] = '';
+  watchdog('user', 'New user: %name (%email).', array('%name' => $username, '%email' => $email), WATCHDOG_NOTICE, l(t('edit'), 'user/' . $account->uid . '/edit'));
+
 }
 
 /**
@@ -146,7 +306,7 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
   switch ($form_id) {
     case 'user_login': // user login page
       $form['eid_link'] = array(
-        '#markup' => l(t('Login using eID'), 'beid/login', array('query' => $destination)),
+        '#markup' => l(t('Login/register using eID'), 'beid/connect', array('query' => $destination)),
         '#weight' => 10,
       );
       // No break. Pass:
@@ -160,13 +320,17 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
       }
       break;
     case 'user_login_block':
+      // override standard action (beid/connect) to prevent triggering login again.
+      if ($_GET['q'] == 'beid/connect') {
+        $form['#action'] =  url(variable_get('site_frontpage', 'node'));
+      }
       // copied from user.module, added another link.
       $items = array();
       if (variable_get('user_register', USER_REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL)) {
         $items[] = l(t('Create new account'), 'user/register', array('attributes' => array('title' => t('Create a new user account.'))));
       }
       $items[] = l(t('Request new password'), 'user/password', array('attributes' => array('title' => t('Request new password via e-mail.'))));
-      $items[] = l(t('Login using eID'), 'beid/login', array('query' => $destination));
+      $items[] = l(t('Login/register using eID'), 'beid/connect', array('query' => $destination));
 
       $form['links'] = array('#markup' => theme('item_list', array('items' => $items)));
       $form['#validate'][] = 'fedict_beidmellon_validate';
@@ -183,7 +347,9 @@ function fedict_beidmellon_validate($form, &$form_state) {
   if (isset($form_state['uid'])) {
     $account = user_load($form_state['uid']);
   }
+  // Check if user can bypass eID auth.
   if (user_access('bypass beid authentication', $account)) {
+    // All is well, no further validation needed.
     return;
   }
 
@@ -192,12 +358,12 @@ function fedict_beidmellon_validate($form, &$form_state) {
     drupal_set_message(t('Sorry, we can not automatically log you in after registration. Please login using eID.'), 'warning');
     drupal_goto();
   }
-  else {
-    $env_account = fedict_beidmellon_get_account_from_env();
-    if (empty($env_account->uid) || empty($account->uid) || $env_account->uid != $account->uid) {
-      form_set_error('name', t('Sorry, this user can not login with a username/password. Please login using eID.'));
-      drupal_goto();
-    }
+
+  // Check if user in form equals user from server environment.
+  $env_account = fedict_beidmellon_get_account_from_env();
+  if (empty($env_account->uid) || empty($account->uid) || $env_account->uid != $account->uid) {
+    form_set_error('name', t('Sorry, this user can not login with a username/password. Please login using eID.'));
+    drupal_goto();
   }
 }
 
