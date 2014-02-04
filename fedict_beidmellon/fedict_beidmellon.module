@@ -159,7 +159,7 @@ function fedict_beidmellon_beid_connect() {
   }
   elseif (!empty($_SERVER['MELLON_givenName']) && !empty($_SERVER['MELLON_surname']) && !empty($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid'])) {
     // Show email screen
-    drupal_set_title('BeID registration');
+    drupal_set_title('eID registration');
     return drupal_get_form('fedict_beidmellon_get_email_form');
   }
   else {
