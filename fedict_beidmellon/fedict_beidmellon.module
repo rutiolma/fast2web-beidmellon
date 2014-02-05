@@ -12,8 +12,6 @@ function fedict_beidmellon_menu() {
   return $items;
 }
 
-// disable normal user registration (so people won't fake names)
-
 /**
  * Implements hook_menu_alter().
  */
@@ -23,7 +21,7 @@ function fedict_beidmellon_menu_alter(&$items) {
 }
 
 /**
- * Implements hook_pass_reset().
+ * Overrides user/reset callback
  */
 function fedict_beidmellon_pass_reset($form, &$form_state, $uid, $timestamp, $hashed_pass, $action = NULL) {
   // The fedict_beidmellon_validate() validation function expects the uid to be
@@ -75,6 +73,9 @@ function fedict_beidmellon_boot() {
 
 /**
  * Implements hook_init().
+ *
+ * Redirect drupal path "beid/connect" to "/beid/connect" so that Mellon auth
+ * will trigger.
  */
 function fedict_beidmellon_init() {
   // Get the prefixless URL
@@ -96,7 +97,8 @@ function fedict_beidmellon_init() {
     // The $GLOBALS['base_root'] . request_uri() != $url condition is to make
     // sure the redirection did not already happen.
     if (($prefixless == 'beid/connect' || $_GET['q'] == 'beid/connect') && $GLOBALS['base_root'] . request_uri() != $url) {
-      // Prevent redirect to destination here. We only want to do that after login.
+      // Prevent redirect to destination here. We only want to do that after
+      // login.
       unset($_GET['destination']);
       // Redirect to beid/connect
       drupal_goto($url, array('external' => TRUE));
@@ -110,14 +112,18 @@ function fedict_beidmellon_init() {
 function _fedict_beidmellon_setup_debug() {
   global $user;
   // UID 1 is super user.
-  if ($user->uid == 1 && variable_get('fedict_beidmellon_fedid_debug') && variable_get('fedict_beidmellon_name_debug')) {
+  if ($user->uid == 1 && variable_get('fedict_beidmellon_fedid_debug') && variable_get('fedict_beidmellon_given_name_debug') && variable_get('fedict_beidmellon_surname_debug')) {
     watchdog('user', 'Session closed for %name.', array('%name' => $user->name));
     module_invoke_all('user_logout', $user);
 
     // Destroy the current session, and reset $user to the anonymous user.
     session_destroy();
-
+    // About to reload current page as we will log in the debug user in the new
+    // request.
+    $_GET['destination'] = 'beid/connect';
+    // Remember that we were superuser in the new request.
     $_SESSION['fedict_beidmellon_is_superuser'] = TRUE;
+    drupal_goto();
   }
   // So as to allow debug name/fedID:
   if (isset($_SESSION['fedict_beidmellon_is_superuser']) && $_SESSION['fedict_beidmellon_is_superuser'] === TRUE) {
@@ -139,7 +145,9 @@ function fedict_beidmellon_beid_connect() {
 
     // See user_login_default_validators. Check for status & flood control.
     if (!isset($account->status) || !$account->status) {
-      drupal_set_message(t('Hi %name, you cannot login yet. Your account is still pending activation.', array('%name' => $account->eid_name)), 'warning');
+      drupal_set_message(t('Hi %name, you cannot login yet. Your account is still pending approval by the user manager.', array(
+        '%name' => $account->field_eid_given_name[LANGUAGE_NONE][0]['value'] . ' ' .  $account->field_eid_surname[LANGUAGE_NONE][0]['value'],
+      )), 'warning');
       drupal_goto();
     }
 
@@ -169,6 +177,9 @@ function fedict_beidmellon_beid_connect() {
   }
 }
 
+/**
+ * eID form to enter email address before registering.
+ */
 function fedict_beidmellon_get_email_form($form, $form_state) {
   $form = array();
   $form['email'] = array(
@@ -199,6 +210,9 @@ function fedict_beidmellon_get_email_form($form, $form_state) {
   return $form;
 }
 
+/**
+ * Form validation for fedict_beidmellon_get_email_form.
+ */
 function fedict_beidmellon_get_email_form_validate($form, &$form_state) {
   $email = $form_state['values']['email'];
   if (!valid_email_address($email)) {
@@ -207,10 +221,28 @@ function fedict_beidmellon_get_email_form_validate($form, &$form_state) {
 }
 
 /**
- *
+ * Implements hook_field_access().
+ */
+function fedict_beidmellon_field_access($op, $field, $entity_type, $entity, $account) {
+  $restricted_fields = array('field_fedid', 'field_eid_surname', 'field_eid_given_name');
+  if ($op == 'edit' && (in_array($field['field_name'], $restricted_fields))) {
+    if (!user_access('administer users')) {
+      // This stops users from editing the given name, surname & FedID fields.
+      return FALSE;
+    }
+    else {
+      // Unless they have "Administer Users" permission.
+      return TRUE;
+    }
+  }
+}
+
+/**
+ * Form submission for fedict_beidmellon_get_email_form.
  * @see user_register_submit().
  */
 function fedict_beidmellon_get_email_form_submit($form, &$form_state) {
+  global $language;
   // Create user
   $name = $form_state['values']['given_name'] . ' ' . $form_state['values']['surname'];
   if (!user_load_by_name($name)) {
@@ -218,8 +250,9 @@ function fedict_beidmellon_get_email_form_submit($form, &$form_state) {
   }
   else {
     // Username already exists. Try to find one that doesn't exist yet.
-    for ($i = 2; $i < 1000; $i++) {
-      $username = $name . ' (' . $i .')';
+      // This does not allow for more than 1000 people with the same name.
+      for ($i = 2; $i <= 1000; $i++) {
+      $username = $name . ' ' . $i;
       if (!user_load_by_name($username)) {
         break;
       }
@@ -228,6 +261,10 @@ function fedict_beidmellon_get_email_form_submit($form, &$form_state) {
 
   $password = user_password();
   $email = $form_state['values']['email'];
+  // Save the current language into the user object so emails will be received
+  // in the right language.
+  $langcode = isset($language) ? $language->language : NULL;
+
   // Set up the user fields
   $fields = array(
     'name'   => $username,
@@ -235,6 +272,7 @@ function fedict_beidmellon_get_email_form_submit($form, &$form_state) {
     'pass'   => $password,
     'status' => 0,
     'init'   => $email,
+    'language' => $langcode,
     'roles'  => array(
       DRUPAL_AUTHENTICATED_RID => 'authenticated user',
     ),
@@ -267,15 +305,19 @@ function fedict_beidmellon_get_email_form_submit($form, &$form_state) {
     INNER JOIN users_roles ur ON u.uid = ur.uid
     INNER JOIN role_permission p ON ur.rid = p.rid
     WHERE p.permission LIKE :perm AND status = 1", array(':perm' => 'receive beid registration notifications'));
+
   // Email all of them
+  // Set up email params:
+  $params['account'] = $account;
+
   foreach ($result as $record) {
-    $account = user_load($record->uid);
-    $params['account'] = $account;
-    $language = user_preferred_language($account);
-    drupal_mail('user', 'register_pending_approval_admin', variable_get('site_mail', ini_get('sendmail_from')), language_default(), $params);
+    $admin_account = user_load($record->uid);
+    $language = user_preferred_language($admin_account);
+    drupal_mail('user', 'register_pending_approval_admin', $admin_account->mail, language_default(), $params);
   }
+
   // Email the user
-  $mail = drupal_mail('user', 'register_pending_approval', variable_get('site_mail', ini_get('sendmail_from')), $language, $params);
+  $mail = drupal_mail('user', 'register_pending_approval', $account->mail, $language, $params);
   drupal_set_message(t('Thank you for applying for an account. Your account is currently pending approval by the user manager.<br />Once it has been approved, you will receive an e-mail containing further instructions.'));
   $form_state['redirect'] = '';
   watchdog('user', 'New user: %name (%email).', array('%name' => $username, '%email' => $email), WATCHDOG_NOTICE, l(t('edit'), 'user/' . $account->uid . '/edit'));
@@ -302,6 +344,7 @@ function fedict_beidmellon_user_login(&$edit, $account) {
  * Implements hook_form_alter
  */
 function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
+  global $user;
   $destination = drupal_get_destination();
   switch ($form_id) {
     case 'user_login': // user login page
@@ -309,7 +352,7 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
         '#markup' => l(t('Login/register using eID'), 'beid/connect', array('query' => $destination)),
         '#weight' => 10,
       );
-      // No break. Pass:
+      break;
     case 'user_register_form': // user register page
     case 'user_pass_reset': // user
       $form['#validate'][] = 'fedict_beidmellon_validate';
@@ -317,6 +360,14 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
     case 'user_profile_form': // one-time login, password reset
       if (isset($_GET['pass-reset-token'])) {
         $form['#validate'][] = 'fedict_beidmellon_validate';
+      }
+      // If this is a e-ID user:
+      $account = user_load($user->uid);
+      if (!empty($account->field_fedid[LANGUAGE_NONE][0]['fedict_fedid'])) {
+        // Disable password-related fields. From passwordless.module:
+        $form['account']['mail']['#description'] = t('A valid e-mail address. All e-mails from the system will be sent to this address. The e-mail address is not made public and will only be used if you wish to receive certain news or notifications by e-mail.');
+        $validate_unset = array_search('user_validate_current_pass', $form['#validate']);
+        unset($form['#validate'][$validate_unset], $form['account']['pass'], $form['account']['current_pass']);
       }
       break;
     case 'user_login_block':
@@ -339,7 +390,7 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
 }
 
 /**
- * Helper submit function.
+ * Helper validation function used in several forms
  */
 function fedict_beidmellon_validate($form, &$form_state) {
   global $user;
@@ -354,7 +405,8 @@ function fedict_beidmellon_validate($form, &$form_state) {
   }
 
   if (isset($form['#form_id']) && $form['#form_id'] == 'user_register_form') {
-    // Do not allow people to be logged in automatically immediately after registration.
+    // Do not allow people to be logged in automatically immediately after
+    // registration.
     drupal_set_message(t('Sorry, we can not automatically log you in after registration. Please login using eID.'), 'warning');
     drupal_goto();
   }
@@ -370,8 +422,8 @@ function fedict_beidmellon_validate($form, &$form_state) {
 /**
  * Load the user object given a certain FedID.
  *
- * @param string $fedid
- * @return object|boolean
+ * @param string $fedid FedID
+ * @return object|boolean User object
  */
 function fedict_beidmellon_user_load_by_fedid($fedid) {
   $fedid_hashed = _fedict_fedid_hash($fedid);
@@ -386,4 +438,46 @@ function fedict_beidmellon_user_load_by_fedid($fedid) {
     return user_load($uid);
   }
   return FALSE;
+}
+
+/**
+ * Implements hook_mail_alter().
+ *
+ * Overrides standard Drupal activation mail body and removes login information.
+ * Also overrides standard Drupal admin approval mail and prepends eID tag.
+ *
+ * The other way to do this would have been to use the
+ * user_mail_status_activated_body variable, however these are not translatable.
+ */
+function fedict_beidmellon_mail_alter(&$message) {
+  // Get language for this email from account info of the recipient user.
+  $langcode = isset($message['params']['account']->language) ? $message['params']['account']->language : NULL;
+  $languages = language_list();
+  $account_language = isset($languages[$langcode]) ? $languages[$langcode] : NULL;
+
+  if ($message['id'] == 'user_status_activated') {
+    $account = $message['params']['account'];
+    // Assuming FedID field is disabled at registration time:
+    if (isset($account->field_fedid[LANGUAGE_NONE][0]['fedict_fedid'])) {
+      $text = t('[user:name],
+
+Thank you for registering at [site:name]. You may now log in using eID:
+
+[site:url]
+
+--  [site:name] team', array(), array('langcode' => $langcode));
+      $message['body'][0] = token_replace($text, array('user' => $account), array('language' => $account_language, 'callback' => 'user_mail_tokens', 'sanitize' => FALSE, 'clear' => TRUE));
+    }
+  }
+  // Prepend one of these 2 tags depending on whether a FedID is defined:
+  elseif ($message['id'] == 'user_register_pending_approval_admin') {
+    $account = $message['params']['account'];
+    // Assuming FedID field is disabled at registration time:
+    if (!empty($account->field_fedid[LANGUAGE_NONE][0]['fedict_fedid'])) {
+      $message['subject'] = '[eID user] ' . $message['subject'];
+    }
+    else {
+      $message['subject']  = '[Untrusted user] ' . $message['subject'];
+    }
+  }
 }
