@@ -65,9 +65,14 @@ function fedict_beidmellon_get_account_from_env() {
  * Implements hook_boot().
  */
 function fedict_beidmellon_boot() {
-  // Disable global redirect for login path:
   if ($_GET['q'] == 'beid/connect') {
+    // Disable global redirect for login path:
     $_POST['global_redirect'] = 'Disabled';
+    // Disable page cache so Mellon triggers for IE.
+    drupal_add_http_header('Pragma', 'no-cache');
+    drupal_add_http_header('Last-Modified', gmdate('D, d M Y H:i:s') . ' GMT');
+    drupal_add_http_header('Cache-Control', 'no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0');
+    drupal_add_http_header('Expires', 'Sat, 02 Jan 1971 00:00:00 GMT');
   }
 }
 
@@ -463,9 +468,9 @@ function fedict_beidmellon_mail_alter(&$message) {
 
 Thank you for registering at [site:name]. You may now log in using eID:
 
-[site:url]
+@url
 
---  [site:name] team', array(), array('langcode' => $langcode));
+--  [site:name] team', array('@url' => url(variable_get('fedict_beidmellon_activation_mail_login_url', 'beid/connect'))), array('langcode' => $langcode));
       $message['body'][0] = token_replace($text, array('user' => $account), array('language' => $account_language, 'callback' => 'user_mail_tokens', 'sanitize' => FALSE, 'clear' => TRUE));
     }
   }
