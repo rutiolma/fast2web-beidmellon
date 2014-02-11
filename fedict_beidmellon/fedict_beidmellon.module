@@ -171,6 +171,11 @@ function fedict_beidmellon_beid_connect() {
     drupal_goto($form_state['redirect']);
   }
   elseif ((isset($_POST['form_id']) && $_POST['form_id'] == 'fedict_beidmellon_get_email_form') || (!empty($_SERVER['MELLON_givenName']) && !empty($_SERVER['MELLON_surname']) && !empty($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid']))) {
+    if ($_POST['form_id'] == 'fedict_beidmellon_get_email_form') {
+       unset($_SERVER['MELLON_givenName']);
+       unset($_SERVER['MELLON_surname']);
+       unset($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid']);
+    }
     // Show email screen
     drupal_set_title('eID registration');
     return drupal_get_form('fedict_beidmellon_get_email_form');
@@ -196,15 +201,15 @@ function fedict_beidmellon_get_email_form($form, $form_state) {
     '#required' => TRUE,
   );
   $form['given_name'] = array(
-    '#value' => $_SERVER['MELLON_givenName'],
+    '#value' => isset($form_state['values']['given_name']) ? $form_state['values']['given_name'] : $_SERVER['MELLON_givenName'],
     '#type' => 'hidden',
   );
   $form['surname'] = array(
-    '#value' => $_SERVER['MELLON_surname'],
+    '#value' => isset($form_state['values']['surname']) ? $form_state['values']['surname'] : $_SERVER['MELLON_surname'],
     '#type' => 'hidden',
   );
   $form['fedid_hashed'] = array(
-    '#value' => _fedict_fedid_hash($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid']),
+    '#value' => isset($form_state['values']['fedid_hashed']) ? $form_state['values']['fedid_hashed'] :  _fedict_fedid_hash($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid']),
     '#type' => 'hidden',
   );
   $form['submit_form'] = array(
