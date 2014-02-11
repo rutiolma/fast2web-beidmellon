@@ -1,4 +1,19 @@
-Please add the following lines to your settings.php file:
+Fedict beID Mellon module
+=========================
 
-$conf['beidmellon_login_url'] = 'beid/login';
-$conf['beidmellon_logout_url'] = 'beid/logout';
+The following variables can be set up:
+
+- fedict_beidmellon_activation_mail_login_url
+    The login URL to mention in the activation mail
+
+In order to fake a Mellon response, log in as user 1, set up all of these 3 variables and go to beid/connect:
+
+- fedict_beidmellon_fedid_debug
+    Fake a Mellon response with the FedID in the variable for debugging purposes.
+
+- fedict_beidmellon_given_name_debug
+    Fake a Mellon response with the given name in the variable for debugging purposes.
+
+- fedict_beidmellon_surname_debug
+    Fake a Mellon response with the surname in the variable for debugging purposes.
+
