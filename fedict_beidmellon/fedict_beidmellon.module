@@ -9,6 +9,13 @@ function fedict_beidmellon_menu() {
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
+  $items['beid/registration'] = array(
+    'title' => 'eID registration',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('fedict_beidmellon_get_registration_info_form'),
+    'access callback' => '_fedict_beidmellon_registration_access',
+    'type' => MENU_CALLBACK,
+  );
   return $items;
 }
 
@@ -68,11 +75,6 @@ function fedict_beidmellon_boot() {
   if ($_GET['q'] == 'beid/connect') {
     // Disable global redirect for login path:
     $_POST['global_redirect'] = 'Disabled';
-    // Disable page cache so Mellon triggers for IE.
-    drupal_add_http_header('Pragma', 'no-cache');
-    drupal_add_http_header('Last-Modified', gmdate('D, d M Y H:i:s') . ' GMT');
-    drupal_add_http_header('Cache-Control', 'no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0');
-    drupal_add_http_header('Expires', 'Sat, 02 Jan 1971 00:00:00 GMT');
   }
 }
 
@@ -139,15 +141,10 @@ function _fedict_beidmellon_setup_debug() {
 }
 
 /**
- * Page callback for eID connect (ie. login or registration, depending on whether FedID is recognized or not).
+ * Helper function for fedict_beidmellon_beid_connect().
+ * Log in user based on account information.
  */
-function fedict_beidmellon_beid_connect() {
-  // Set up fake server environment variables with debug variables, if needed
-  _fedict_beidmellon_setup_debug();
-
-  // If we find the FedID back in the database:
-  if ($account = fedict_beidmellon_get_account_from_env()) {
-
+function _fedict_beidmellon_login_user($account) {
     // See user_login_default_validators. Check for status & flood control.
     if (!isset($account->status) || !$account->status) {
       drupal_set_message(t('Hi %name, you cannot login yet. Your account is still pending approval by the user manager.', array(
@@ -169,16 +166,29 @@ function fedict_beidmellon_beid_connect() {
     $form_state = array('uid' => $account->uid);
     user_login_submit(array(), $form_state);
     drupal_goto($form_state['redirect']);
+}
+
+/**
+ * Page callback for eID connect (ie. login or registration, depending on whether FedID is recognized or not).
+ */
+function fedict_beidmellon_beid_connect() {
+  // Set up fake server environment variables with debug variables, if needed
+  _fedict_beidmellon_setup_debug();
+
+  // If we find the FedID back in the database:
+  if ($account = fedict_beidmellon_get_account_from_env()) {
+    _fedict_beidmellon_login_user($account);
   }
-  elseif ((isset($_POST['form_id']) && $_POST['form_id'] == 'fedict_beidmellon_get_email_form') || (!empty($_SERVER['MELLON_givenName']) && !empty($_SERVER['MELLON_surname']) && !empty($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid']))) {
-    if ($_POST['form_id'] == 'fedict_beidmellon_get_email_form') {
-       unset($_SERVER['MELLON_givenName']);
-       unset($_SERVER['MELLON_surname']);
-       unset($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid']);
+  elseif (_fedict_beidmellon_registration_access()) {
+    if (isset($_GET['destination'])) {
+      // Prevent redirect at this stage. Only do this after the registration.
+      $destination = $_GET['destination'];
+      unset($_GET['destination']);
+      drupal_goto('beid/registration', array('query' => array('destination' => $destination)));
     }
-    // Show email screen
-    drupal_set_title('eID registration');
-    return drupal_get_form('fedict_beidmellon_get_email_form');
+    else {
+      drupal_goto('beid/registration');
+    }
   }
   else {
     drupal_set_message(t('The eID authentication was unsuccessful.'), 'error');
@@ -188,9 +198,26 @@ function fedict_beidmellon_beid_connect() {
 }
 
 /**
+ * Checks whether we have access to the registration form.
+ *
+ * Also sets up debug variables.
+ */
+function _fedict_beidmellon_registration_access() {
+  // Set up fake server environment variables with debug variables, if needed
+  _fedict_beidmellon_setup_debug();
+
+  if (isset($_POST['form_id']) && $_POST['form_id'] == 'fedict_beidmellon_get_registration_info_form') {
+    // If we were already on the registration page
+    return TRUE;
+  }
+  // Otherwise, check if we got all the data from the IDP.
+  return (!empty($_SERVER['MELLON_givenName']) && !empty($_SERVER['MELLON_surname']) && !empty($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid']));
+}
+
+/**
  * eID form to enter email address before registering.
  */
-function fedict_beidmellon_get_email_form($form, $form_state) {
+function fedict_beidmellon_get_registration_info_form($form, $form_state) {
   $form = array();
   $form['email'] = array(
     '#type' => 'textfield',
@@ -201,29 +228,29 @@ function fedict_beidmellon_get_email_form($form, $form_state) {
     '#required' => TRUE,
   );
   $form['given_name'] = array(
-    '#value' => isset($form_state['values']['given_name']) ? $form_state['values']['given_name'] : $_SERVER['MELLON_givenName'],
+    '#value' => isset($form_state['input']['given_name']) ? $form_state['input']['given_name'] : $_SERVER['MELLON_givenName'],
     '#type' => 'hidden',
   );
   $form['surname'] = array(
-    '#value' => isset($form_state['values']['surname']) ? $form_state['values']['surname'] : $_SERVER['MELLON_surname'],
+    '#value' => isset($form_state['input']['surname']) ? $form_state['input']['surname'] : $_SERVER['MELLON_surname'],
     '#type' => 'hidden',
   );
   $form['fedid_hashed'] = array(
-    '#value' => isset($form_state['values']['fedid_hashed']) ? $form_state['values']['fedid_hashed'] :  _fedict_fedid_hash($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid']),
+    '#value' => isset($form_state['input']['fedid_hashed']) ? $form_state['input']['fedid_hashed'] :  _fedict_fedid_hash($_SERVER['MELLON_urn_be_fedict_iam_attr_fedid']),
     '#type' => 'hidden',
   );
   $form['submit_form'] = array(
     '#type' => 'submit',
     '#value' => t('Next'),
-    '#submit' => array('fedict_beidmellon_get_email_form_submit'),
+    '#submit' => array('fedict_beidmellon_get_registration_info_form_submit'),
   );
   return $form;
 }
 
 /**
- * Form validation for fedict_beidmellon_get_email_form.
+ * Form validation for fedict_beidmellon_get_registration_info_form.
  */
-function fedict_beidmellon_get_email_form_validate($form, &$form_state) {
+function fedict_beidmellon_get_registration_info_form_validate($form, &$form_state) {
   $email = $form_state['values']['email'];
   if (!valid_email_address($email)) {
     form_set_error('email', t('Please enter a valid e-mail address.'));
@@ -248,10 +275,10 @@ function fedict_beidmellon_field_access($op, $field, $entity_type, $entity, $acc
 }
 
 /**
- * Form submission for fedict_beidmellon_get_email_form.
+ * Form submission for fedict_beidmellon_get_registration_info_form.
  * @see user_register_submit().
  */
-function fedict_beidmellon_get_email_form_submit($form, &$form_state) {
+function fedict_beidmellon_get_registration_info_form_submit($form, &$form_state) {
   global $language;
   // Create user
   $name = $form_state['values']['given_name'] . ' ' . $form_state['values']['surname'];
