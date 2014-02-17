@@ -4,8 +4,8 @@
  * Implements hook_menu().
  */
 function fedict_beidmellon_menu() {
-  $items['beid/connect'] = array(
-    'page callback' => 'fedict_beidmellon_beid_connect',
+  $items['beid/login'] = array(
+    'page callback' => 'fedict_beidmellon_beid_login',
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
   );
@@ -72,7 +72,7 @@ function fedict_beidmellon_get_account_from_env() {
  * Implements hook_boot().
  */
 function fedict_beidmellon_boot() {
-  if ($_GET['q'] == 'beid/connect') {
+  if ($_GET['q'] == 'beid/login') {
     // Disable global redirect for login path:
     $_POST['global_redirect'] = 'Disabled';
   }
@@ -81,7 +81,7 @@ function fedict_beidmellon_boot() {
 /**
  * Implements hook_init().
  *
- * Redirect drupal path "beid/connect" to "/beid/connect" so that Mellon auth
+ * Redirect drupal path "beid/login" to "/beid/login" so that Mellon auth
  * will trigger.
  */
 function fedict_beidmellon_init() {
@@ -95,7 +95,7 @@ function fedict_beidmellon_init() {
   }
 
   // Set up redirect for login page
-  $url_login = $GLOBALS['base_url'] . '/beid/connect';
+  $url_login = $GLOBALS['base_url'] . '/beid/login';
   if (isset($_GET['destination']) && empty($_POST['form_id'])) {
     $url = url($url_login, array(
       'external' => TRUE,
@@ -103,18 +103,18 @@ function fedict_beidmellon_init() {
     ));
     // The $GLOBALS['base_root'] . request_uri() != $url condition is to make
     // sure the redirection did not already happen.
-    if (($prefixless == 'beid/connect' || $_GET['q'] == 'beid/connect') && $GLOBALS['base_root'] . request_uri() != $url) {
+    if (($prefixless == 'beid/login' || $_GET['q'] == 'beid/login') && $GLOBALS['base_root'] . request_uri() != $url) {
       // Prevent redirect to destination here. We only want to do that after
       // login.
       unset($_GET['destination']);
-      // Redirect to beid/connect
+      // Redirect to beid/login
       drupal_goto($url, array('external' => TRUE));
     }
   }
 }
 
 /**
- * Helper function for fedict_beidmellon_beid_connect().
+ * Helper function for fedict_beidmellon_beid_login().
  */
 function _fedict_beidmellon_setup_debug() {
   global $user;
@@ -127,7 +127,7 @@ function _fedict_beidmellon_setup_debug() {
     session_destroy();
     // About to reload current page as we will log in the debug user in the new
     // request.
-    $_GET['destination'] = 'beid/connect';
+    $_GET['destination'] = 'beid/login';
     // Remember that we were superuser in the new request.
     $_SESSION['fedict_beidmellon_is_superuser'] = TRUE;
     drupal_goto();
@@ -141,7 +141,7 @@ function _fedict_beidmellon_setup_debug() {
 }
 
 /**
- * Helper function for fedict_beidmellon_beid_connect().
+ * Helper function for fedict_beidmellon_beid_login().
  * Log in user based on account information.
  */
 function _fedict_beidmellon_login_user($account) {
@@ -169,9 +169,9 @@ function _fedict_beidmellon_login_user($account) {
 }
 
 /**
- * Page callback for eID connect (ie. login or registration, depending on whether FedID is recognized or not).
+ * Page callback for eID login (ie. login or registration, depending on whether FedID is recognized or not).
  */
-function fedict_beidmellon_beid_connect() {
+function fedict_beidmellon_beid_login() {
   // Set up fake server environment variables with debug variables, if needed
   _fedict_beidmellon_setup_debug();
 
@@ -386,7 +386,7 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
   switch ($form_id) {
     case 'user_login': // user login page
       $form['eid_link'] = array(
-        '#markup' => l(t('Login/register using eID'), 'beid/connect', array('query' => $destination)),
+        '#markup' => l(t('Login/register using eID'), 'beid/login', array('query' => $destination)),
         '#weight' => 10,
       );
       break;
@@ -408,8 +408,8 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
       }
       break;
     case 'user_login_block':
-      // override standard action (beid/connect) to prevent triggering login again.
-      if ($_GET['q'] == 'beid/connect') {
+      // override standard action (beid/login) to prevent triggering login again.
+      if ($_GET['q'] == 'beid/login') {
         $form['#action'] =  url(variable_get('site_frontpage', 'node'));
       }
       // copied from user.module, added another link.
@@ -418,7 +418,7 @@ function fedict_beidmellon_form_alter(&$form, &$form_state, $form_id) {
         $items[] = l(t('Create new account'), 'user/register', array('attributes' => array('title' => t('Create a new user account.'))));
       }
       $items[] = l(t('Request new password'), 'user/password', array('attributes' => array('title' => t('Request new password via e-mail.'))));
-      $items[] = l(t('Login/register using eID'), 'beid/connect', array('query' => $destination));
+      $items[] = l(t('Login/register using eID'), 'beid/login', array('query' => $destination));
 
       $form['links'] = array('#markup' => theme('item_list', array('items' => $items)));
       $form['#validate'][] = 'fedict_beidmellon_validate';
@@ -502,7 +502,7 @@ Thank you for registering at [site:name]. You may now log in using eID:
 
 @url
 
---  [site:name] team', array('@url' => url(variable_get('fedict_beidmellon_activation_mail_login_url', 'beid/connect'))), array('langcode' => $langcode));
+--  [site:name] team', array('@url' => url(variable_get('fedict_beidmellon_activation_mail_login_url', 'beid/login'))), array('langcode' => $langcode));
       $message['body'][0] = token_replace($text, array('user' => $account), array('language' => $account_language, 'callback' => 'user_mail_tokens', 'sanitize' => FALSE, 'clear' => TRUE));
     }
   }
