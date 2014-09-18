@@ -1,0 +1,12 @@
+name = Publications (with shopping cart) - Deployment module
+description = Deployment module to manage publications.
+core = 7.x
+package = OpenFed
+version = 7.x-1.0-beta1
+project = ofed_uc_publication_deploy
+dependencies[] = ofed_uc_publication
+dependencies[] = uc_product_power_tools
+dependencies[] = uc_ct_cart_language
+dependencies[] = uc_ct_disable
+dependencies[] = uc_ct_hide_price
+dependencies[] = uc_ct_multistep

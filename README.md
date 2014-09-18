@@ -1,4 +1,2 @@
-fast2web-beidmellon
-===================
-
-Development of an authentication solution with eid &amp; mod_mellon on drupal
+The Beid Mellon code has been moved to:
+http://drupal.org/project/beidmellon

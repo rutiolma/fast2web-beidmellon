@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the Publications (with shopping cart) feature.
+ */
+
+include_once 'ofed_uc_publication.features.inc';
