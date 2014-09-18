@@ -71,21 +71,20 @@ function ofed_uc_publication_deploy_install() {
   $roles['Content Manager'] = user_role_load_by_name('Content Manager');
   $roles = array_filter($roles);
 
-  foreach ($roles as $rid) {
+  foreach ($roles as $role) {
     $permissions = array(
       'create ofed_uc_publication content',
       'edit own ofed_uc_publication content',
       'edit any ofed_uc_publication content',
       'delete own ofed_uc_publication content',
       'delete any ofed_uc_publication content',
-      'view ds_flag_uc_ct_disable_addtocart on node',
       'flag uc_ct_disable_addtocart',
       'unflag uc_ct_disable_addtocart'
     );
-    user_role_grant_permissions($rid, $permissions);
+    user_role_grant_permissions($role->rid, $permissions);
   }
-  if (!empty($roles['Configurator'])) {
-    user_role_grant_permissions($roles['Configurator'], array(
+  if (!empty($roles['Configurator']->rid)) {
+    user_role_grant_permissions($roles['Configurator']->rid, array(
       'administer store',
       'administer product power tools settings',
     ));
@@ -95,7 +94,7 @@ function ofed_uc_publication_deploy_install() {
   $theme = variable_get('theme_default');
 
   if (!empty($theme)) {
-    $main_content = db_select('b','block')
+    $main_content = db_select('block', 'b')
       ->fields('b')
       ->condition('module', 'system', '=')
       ->condition('delta', 'main', '=')
