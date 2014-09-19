@@ -415,7 +415,7 @@ function ofed_uc_publication_strongarm() {
   $strongarm->disabled = FALSE; /* Edit this to true to make a default strongarm disabled initially */
   $strongarm->api_version = 1;
   $strongarm->name = 'uc_add_item_redirect';
-  $strongarm->value = '';
+  $strongarm->value = '<none>';
   $export['uc_add_item_redirect'] = $strongarm;
 
   $strongarm = new stdClass();
