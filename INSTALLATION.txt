@@ -3,3 +3,5 @@
 - Copy ofed_uc_publication.make to the root directory of your drupal install and
   run the following command:
     drush make ofed_uc_publication.make  --no-core -y
+
+- Activate the ofed_uc_publication_deploy module which will set everything up.
