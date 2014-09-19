@@ -4,16 +4,10 @@
  * Implements hook_install().
  */
 function ofed_uc_publication_deploy_install() {
+  // Reset permissions
+  drupal_flush_all_caches();
+
   module_load_include('inc', 'uc_store', 'uc_store.countries');
-  // Hide Product content type as it will not be used.
-  // We will use the Publication content type for products instead.
-  menu_rebuild();
-  $mlid = db_query("SELECT mlid FROM {menu_links} WHERE module = 'system' AND router_path = 'node/add/product'")->fetchField();
-  if ($mlid) {
-    $link = menu_link_load($mlid);
-    $link['hidden'] = 1;
-    menu_link_save($link);
-  }
 
   // Import Belgian country file.
   $country_name = 'Belgium';
@@ -58,9 +52,6 @@ function ofed_uc_publication_deploy_install() {
   variable_set('uc_ct_string_products', 'Documents');
   variable_set('uc_ct_string_quantity', 'Number of copies');
 
-  // Expose "View: Publication translations" & "Multistep" blocks in content
-  // area.
-
   // To do: set up translated strings.
 
   // Set up permissions.
@@ -102,6 +93,8 @@ function ofed_uc_publication_deploy_install() {
       ->execute()
       ->fetchAssoc();
 
+    // Expose "View: Publication translations" & "Multistep" blocks in content
+    // area.
     $views_block_weight =  $main_content['weight'] + 1;
     db_update('block')
     ->fields(array(
