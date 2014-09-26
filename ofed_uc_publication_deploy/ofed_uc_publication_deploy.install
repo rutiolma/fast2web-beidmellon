@@ -70,7 +70,7 @@ function ofed_uc_publication_deploy_install() {
       'delete own ofed_uc_publication content',
       'delete any ofed_uc_publication content',
       'flag uc_ct_disable_addtocart',
-      'unflag uc_ct_disable_addtocart'
+      'unflag uc_ct_disable_addtocart',
     );
     user_role_grant_permissions($role->rid, $permissions);
   }
@@ -95,20 +95,21 @@ function ofed_uc_publication_deploy_install() {
 
     // Expose "View: Publication translations" & "Multistep" blocks in content
     // area.
-    $views_block_weight =  $main_content['weight'] + 1;
+    $views_block_weight = $main_content['weight'] + 1;
     db_update('block')
     ->fields(array(
-     'status' => 1,
-     'region' => $main_content['region'],
-     'weight' => $views_block_weight,
+      'status' => 1,
+      'region' => $main_content['region'],
+      'weight' => $views_block_weight,
     ))
     ->condition('theme', $theme)
+
     // Hash for language selection block:
     ->condition('delta', '4222ba2ad6c920f4ff784277743b63a4')
     ->condition('module', 'views')
     ->execute();
 
-    $multistep_block_weight =  $main_content['weight'] - 1;
+    $multistep_block_weight = $main_content['weight'] - 1;
     db_update('block')
     ->fields(array(
       'status' => 1,
@@ -147,6 +148,7 @@ function _ofed_uc_publication_deploy_remove_country($country_name) {
   if (!$country_id) {
     return;
   }
+
   $result = db_query("SELECT * FROM {uc_countries} WHERE country_id = :id", array(':id' => $country_id));
   if (!($country = $result->fetchObject())) {
     drupal_set_message(t('Attempted to remove an invalid country.'), 'error');
@@ -155,6 +157,7 @@ function _ofed_uc_publication_deploy_remove_country($country_name) {
   db_delete('uc_countries')
   ->condition('country_id', $country_id)
   ->execute();
+
   db_delete('uc_zones')
   ->condition('zone_country_id', $country_id)
   ->execute();
@@ -167,4 +170,34 @@ function _ofed_uc_publication_deploy_remove_country($country_name) {
       $func();
     }
   }
+}
+
+/**
+ * Implements hook_requirements().
+ */
+function ofed_uc_publication_deploy_requirements($phase) {
+  $requirements = array();
+  // Ensure translations don't break during installation.
+  $t = get_t();
+
+  if ($phase == 'install') {
+    // Negotiation hooks & constants are defined here:
+    require_once DRUPAL_ROOT . '/includes/language.inc';
+    require_once DRUPAL_ROOT . '/includes/locale.inc';
+    require_once DRUPAL_ROOT . '/modules/locale/locale.module';
+
+    $info = language_negotiation_info();
+    foreach ($info as $id => $provider) {
+      $providers_weight[$id] = language_provider_weight($provider);
+    }
+    $first_provider = array_shift(array_keys($providers_weight, min($providers_weight)));
+    if ($first_provider !== LOCALE_LANGUAGE_NEGOTIATION_URL) {
+      $requirements['ofed_uc_publication_deploy'] = array(
+        'title' => $t('Publications (with shopping cart) - Deployment module'),
+        'description' => $t('Language provider with the lowest weight must be the URL provider. Please go to admin/config/regional/language/configure and make sure "URL" is the topmost provider.'),
+        'severity' => REQUIREMENT_ERROR,
+      );
+    }
+  }
+  return $requirements;
 }

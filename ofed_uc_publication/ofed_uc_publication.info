@@ -9,6 +9,7 @@ dependencies[] = date
 dependencies[] = entityreference
 dependencies[] = features
 dependencies[] = file
+dependencies[] = i18n
 dependencies[] = image
 dependencies[] = metatag
 dependencies[] = node
