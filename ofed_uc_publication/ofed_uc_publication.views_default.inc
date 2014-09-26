@@ -80,6 +80,19 @@ function ofed_uc_publication_views_default_views() {
   $handler->display->display_options['fields']['language']['relationship'] = 'translation';
   $handler->display->display_options['fields']['language']['label'] = '';
   $handler->display->display_options['fields']['language']['element_label_colon'] = FALSE;
+  /* Field: Content: File(s) */
+  $handler->display->display_options['fields']['field_ofed_uc_publication_file']['id'] = 'field_ofed_uc_publication_file';
+  $handler->display->display_options['fields']['field_ofed_uc_publication_file']['table'] = 'field_data_field_ofed_uc_publication_file';
+  $handler->display->display_options['fields']['field_ofed_uc_publication_file']['field'] = 'field_ofed_uc_publication_file';
+  $handler->display->display_options['fields']['field_ofed_uc_publication_file']['relationship'] = 'translation';
+  $handler->display->display_options['fields']['field_ofed_uc_publication_file']['label'] = '';
+  $handler->display->display_options['fields']['field_ofed_uc_publication_file']['element_label_colon'] = FALSE;
+  $handler->display->display_options['fields']['field_ofed_uc_publication_file']['click_sort_column'] = 'fid';
+  $handler->display->display_options['fields']['field_ofed_uc_publication_file']['settings'] = array(
+    'file_view_mode' => 'default',
+  );
+  $handler->display->display_options['fields']['field_ofed_uc_publication_file']['delta_offset'] = '0';
+  $handler->display->display_options['fields']['field_ofed_uc_publication_file']['multi_type'] = 'ul';
   /* Field: Product: Add to cart form */
   $handler->display->display_options['fields']['addtocartlink']['id'] = 'addtocartlink';
   $handler->display->display_options['fields']['addtocartlink']['table'] = 'uc_products';
@@ -101,17 +114,6 @@ function ofed_uc_publication_views_default_views() {
   $handler->display->display_options['arguments']['nid_1']['summary']['number_of_records'] = '0';
   $handler->display->display_options['arguments']['nid_1']['summary']['format'] = 'default_summary';
   $handler->display->display_options['arguments']['nid_1']['summary_options']['items_per_page'] = '25';
-  /* Contextual filter: Content: Nid */
-  $handler->display->display_options['arguments']['nid']['id'] = 'nid';
-  $handler->display->display_options['arguments']['nid']['table'] = 'node';
-  $handler->display->display_options['arguments']['nid']['field'] = 'nid';
-  $handler->display->display_options['arguments']['nid']['relationship'] = 'translation';
-  $handler->display->display_options['arguments']['nid']['default_action'] = 'default';
-  $handler->display->display_options['arguments']['nid']['default_argument_type'] = 'node';
-  $handler->display->display_options['arguments']['nid']['summary']['number_of_records'] = '0';
-  $handler->display->display_options['arguments']['nid']['summary']['format'] = 'default_summary';
-  $handler->display->display_options['arguments']['nid']['summary_options']['items_per_page'] = '25';
-  $handler->display->display_options['arguments']['nid']['not'] = TRUE;
   /* Filter criterion: Content: Published */
   $handler->display->display_options['filters']['status']['id'] = 'status';
   $handler->display->display_options['filters']['status']['table'] = 'node';
