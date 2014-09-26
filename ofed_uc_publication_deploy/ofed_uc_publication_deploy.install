@@ -203,10 +203,11 @@ function ofed_uc_publication_deploy_requirements($phase) {
     foreach ($needles as $needle) {
       if (!in_array($needle, $roles)) {
         $requirements['ofed_uc_publication_deploy_roles'] = array(
-        'title' => $t('Publications (with shopping cart) - Deployment module'),
-        'description' => $t('Please make sure all of the following role exists: @role', array('@role' => $needle)),
-        'severity' => REQUIREMENT_WARNING,
-      );
+          'title' => $t('Publications (with shopping cart) - Deployment module'),
+          'description' => $t('Please make sure all of the following role exists: @role', array('@role' => $needle)),
+          'severity' => REQUIREMENT_WARNING,
+        );
+      }
     }
   }
   return $requirements;
