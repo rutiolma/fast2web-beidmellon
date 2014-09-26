@@ -180,7 +180,7 @@ function ofed_uc_publication_deploy_requirements($phase) {
   // Ensure translations don't break during installation.
   $t = get_t();
 
-  if ($phase == 'install') {
+  if ($phase == 'install' && function_exists('db_query') && Database::isActiveConnection()) {
     // Negotiation hooks & constants are defined here:
     require_once DRUPAL_ROOT . '/includes/language.inc';
     require_once DRUPAL_ROOT . '/includes/locale.inc';
@@ -192,10 +192,20 @@ function ofed_uc_publication_deploy_requirements($phase) {
     }
     $first_provider = array_shift(array_keys($providers_weight, min($providers_weight)));
     if ($first_provider !== LOCALE_LANGUAGE_NEGOTIATION_URL) {
-      $requirements['ofed_uc_publication_deploy'] = array(
+      $requirements['ofed_uc_publication_deploy_url'] = array(
         'title' => $t('Publications (with shopping cart) - Deployment module'),
         'description' => $t('Language provider with the lowest weight must be the URL provider. Please go to admin/config/regional/language/configure and make sure "URL" is the topmost provider.'),
         'severity' => REQUIREMENT_ERROR,
+      );
+    }
+    $needles = array('Administrator', 'Builder', 'Configurator', 'Content Manager');
+    $roles = user_roles();
+    foreach ($needles as $needle) {
+      if (!in_array($needle, $roles)) {
+        $requirements['ofed_uc_publication_deploy_roles'] = array(
+        'title' => $t('Publications (with shopping cart) - Deployment module'),
+        'description' => $t('Please make sure all of the following role exists: @role', array('@role' => $needle)),
+        'severity' => REQUIREMENT_WARNING,
       );
     }
   }
