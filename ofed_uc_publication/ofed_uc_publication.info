@@ -171,4 +171,4 @@ features[variable][] = uc_weight_format_oz
 features[variable][] = uc_weight_unit
 features[variable][] = xmlsitemap_settings_node_ofed_uc_publication
 features[views_view][] = publication_translations
-project path = sites/all/modules/new
+project path = sites/all/modules

@@ -86,6 +86,7 @@ function ofed_uc_publication_views_default_views() {
   $handler->display->display_options['fields']['field_ofed_uc_publication_file']['field'] = 'field_ofed_uc_publication_file';
   $handler->display->display_options['fields']['field_ofed_uc_publication_file']['relationship'] = 'translation';
   $handler->display->display_options['fields']['field_ofed_uc_publication_file']['label'] = '';
+  $handler->display->display_options['fields']['field_ofed_uc_publication_file']['element_class'] = 'nerra-filesize';
   $handler->display->display_options['fields']['field_ofed_uc_publication_file']['element_label_colon'] = FALSE;
   $handler->display->display_options['fields']['field_ofed_uc_publication_file']['click_sort_column'] = 'fid';
   $handler->display->display_options['fields']['field_ofed_uc_publication_file']['settings'] = array(
