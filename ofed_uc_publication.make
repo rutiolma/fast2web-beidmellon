@@ -10,5 +10,5 @@ projects[uc_customization_tools][type] = module
 projects[uc_customization_tools][download][type] = git
 projects[uc_customization_tools][download][branch] = "7.x-1.x"
 projects[uc_customization_tools][download][url] = http://git.drupal.org/sandbox/bart.hanssens/2339663.git
-projects[uc_customization_tools][download][revision] = be0b9bf
+projects[uc_customization_tools][download][revision] = 4bd0f72
 
