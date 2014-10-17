@@ -49,7 +49,7 @@ function ofed_uc_publication_deploy_install() {
 
   // Set up UC Customization Tools:
   // Set up variables.
-  variable_set('uc_ct_string_products', 'Documents');
+  variable_set('uc_ct_string_products', 'Publications');
   variable_set('uc_ct_string_quantity', 'Number of copies');
 
   // To do: set up translated strings.
