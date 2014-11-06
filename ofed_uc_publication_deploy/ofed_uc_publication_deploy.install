@@ -51,7 +51,7 @@ function ofed_uc_publication_deploy_install() {
   // Set up variables.
   variable_set('uc_ct_string_products', 'Publications');
   variable_set('uc_ct_string_quantity', 'Number of copies');
-  variable_set('uc_ct_string_continue_shopping', 'Go back to publications');
+  variable_set('uc_ct_string_continue_shopping', 'Add more publications');
 
   // To do: set up translated strings.
 
