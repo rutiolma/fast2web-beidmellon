@@ -1,0 +1,146 @@
+diff --git a/menu_block.admin.inc b/menu_block.admin.inc
+index 992a0cc..46bf912 100644
+--- a/menu_block.admin.inc
++++ b/menu_block.admin.inc
+@@ -160,10 +160,12 @@ function menu_block_delete_submit($form, &$form_state) {
+   variable_set('menu_block_ids', $block_ids);
+   variable_del("menu_block_{$delta}_title_link");
+   variable_del("menu_block_{$delta}_admin_title");
++  variable_del("menu_block_{$delta}_class_name");
+   variable_del("menu_block_{$delta}_parent");
+   variable_del("menu_block_{$delta}_level");
+   variable_del("menu_block_{$delta}_follow");
+   variable_del("menu_block_{$delta}_depth");
++  variable_del("menu_block_{$delta}_relative");
+   variable_del("menu_block_{$delta}_expanded");
+   variable_del("menu_block_{$delta}_sort");
+ 
+@@ -346,6 +348,24 @@ function menu_block_configure_form($form, &$form_state) {
+     '#description' => t('The preferred menus used by <em>&lt;the menu selected by the page&gt;</em> can be customized on the <a href="!url">Menu block settings page</a>.', array('!url' => url('admin/config/user-interface/menu-block'))),
+     '#attributes' => array('class' => array('menu-block-menu-name')),
+   );
++  $form['class_name'] = array(
++    '#type' => 'textfield',
++    '#default_value' => $config['class_name'],
++    '#title' => t('Additional CSS class name'),
++    '#description' => t('Optionally assign a CSS class name in addition to <strong>menu-block-!delta</strong>.', array('!delta' => $form_state['values']['delta'])),
++  );
++  $form['class_name'] = array(
++    '#type' => 'textfield',
++    '#default_value' => $config['class_name'],
++    '#title' => t('Additional CSS class name'),
++    '#description' => t('Optionally assign a CSS class name in addition to <strong>menu-block-!delta</strong>.', array('!delta'=>$form_state['values']['delta'])),
++  );
++  $form['class_name'] = array(
++    '#type' => 'textfield',
++    '#default_value' => $config['class_name'],
++    '#title' => t('Additional CSS class name'),
++    '#description' => t('Optionally assign a CSS class name in addition to <strong>menu-block-!delta</strong>.', array('!delta'=>$form_state['values']['delta'])),
++  );
+   $form['level'] = array(
+     '#type' => 'select',
+     '#title' => t('Starting level'),
+@@ -379,6 +399,16 @@ function menu_block_configure_form($form, &$form_state) {
+     '#description' => t('If the active menu item is deeper than the level specified above, the starting level will follow the active menu item. Otherwise, the starting level of the tree will remain fixed.'),
+     '#element_validate' => array('menu_block_configure_form_follow_validate'),
+   );
++  $form['relative'] = array(
++    '#type' => 'checkbox',
++    '#title' => t('Make the maximum depth relative to the starting level while following the active menu item.'),
++    '#default_value' => $config['relative'],
++    '#states' => array(
++      'visible' => array(
++        ':input[name=follow]' => array('checked' => TRUE),
++      ),
++    ),
++  );
+   $form['follow_parent'] = array(
+     '#type' => 'select',
+     '#title' => t('Starting level will be'),
+@@ -436,7 +466,7 @@ function menu_block_configure_form($form, &$form_state) {
+   $form['menu-block-wrapper-close'] = array('#markup' => '</div>');
+ 
+   // Set visibility of advanced options.
+-  foreach (array('title_link', 'follow', 'follow_parent', 'expanded', 'sort', 'parent') as $key) {
++  foreach (array('title_link', 'follow', 'relative', 'follow_parent', 'expanded', 'sort', 'parent', 'class_name') as $key) {
+     $form[$key]['#states']['visible'][':input[name=display_options]'] = array('value' => 'advanced');
+   }
+   if ($config['title_link'] || $follow || $config['expanded'] || $config['sort'] || $config['parent_mlid']) {
+@@ -481,10 +511,12 @@ function _menu_block_block_save($delta = '', $edit = array()) {
+     if (empty($config['exported_to_code'])) {
+       variable_set("menu_block_{$delta}_title_link", $edit['title_link']);
+       variable_set("menu_block_{$delta}_admin_title", $edit['admin_title']);
++      variable_set("menu_block_{$delta}_class_name", $edit['class_name']);
+       variable_set("menu_block_{$delta}_parent", $edit['parent']);
+       variable_set("menu_block_{$delta}_level", $edit['level']);
+       variable_set("menu_block_{$delta}_follow", $edit['follow']);
+       variable_set("menu_block_{$delta}_depth", $edit['depth']);
++      variable_set("menu_block_{$delta}_relative", $edit['relative']);
+       variable_set("menu_block_{$delta}_expanded", $edit['expanded']);
+       variable_set("menu_block_{$delta}_sort", $edit['sort']);
+     }
+diff --git a/menu_block.module b/menu_block.module
+index 89c26d5..c46707e 100644
+--- a/menu_block.module
++++ b/menu_block.module
+@@ -159,6 +159,10 @@ function template_preprocess_menu_block_wrapper(&$variables) {
+   $variables['classes_array'][] = 'menu-name-' . $variables['config']['menu_name'];
+   $variables['classes_array'][] = 'parent-mlid-' . $variables['config']['parent_mlid'];
+   $variables['classes_array'][] = 'menu-level-' . $variables['config']['level'];
++  $classes = explode(' ', $variables['config']['class_name']);
++  foreach ($classes as $class) {
++    $variables['classes_array'][] = drupal_html_class($class);
++  }
+ }
+ 
+ /**
+@@ -208,8 +212,10 @@ function menu_block_get_config($delta = NULL) {
+     'level'       => 1,
+     'follow'      => 0,
+     'depth'       => 0,
++    'relative'    => 0,
+     'expanded'    => 0,
+     'sort'        => 0,
++    'class_name'  => '',
+   );
+ 
+   // Get the block configuration options.
+@@ -232,10 +238,13 @@ function menu_block_get_config($delta = NULL) {
+     $config['level']       = variable_get("menu_block_{$delta}_level",       $config['level']);
+     $config['follow']      = variable_get("menu_block_{$delta}_follow",      $config['follow']);
+     $config['depth']       = variable_get("menu_block_{$delta}_depth",       $config['depth']);
++    $config['relative']    = variable_get("menu_block_{$delta}_relative",    $config['relative']);
+     $config['expanded']    = variable_get("menu_block_{$delta}_expanded",    $config['expanded']);
+     $config['sort']        = variable_get("menu_block_{$delta}_sort",        $config['sort']);
+     $config['parent']      = variable_get("menu_block_{$delta}_parent",      $config['menu_name'] . ':' . $config['parent_mlid']);
++    $config['class_name']  = variable_get("menu_block_{$delta}_class_name",  $config['class_name']);
+     list($config['menu_name'], $config['parent_mlid']) = explode(':', $config['parent']);
++    drupal_alter('menu_block_config', $config, $delta);
+   }
+ 
+   return $config;
+@@ -253,7 +262,7 @@ function menu_tree_block_data(&$config) {
+ 
+   if ($config['expanded'] || $config['parent_mlid']) {
+     // Get the full, un-pruned tree.
+-    if ($config['parent_mlid']) {
++    if ($config['parent_mlid'] || $config['relative']) {
+       $tree = menu_tree_all_data($config['menu_name']);
+     }
+     else {
+@@ -263,8 +272,13 @@ function menu_tree_block_data(&$config) {
+     menu_tree_add_active_path($tree);
+   }
+   else {
+-    // Get the tree pruned for just the active trail.
+-    $tree = menu_tree_page_data($config['menu_name'], $max_depth);
++    if ($config['relative']) {
++      // Get the tree pruned for just the active trail.
++      $tree = menu_tree_page_data($config['menu_name']);
++    }
++    else {
++      $tree = menu_tree_page_data($config['menu_name'], $max_depth);
++    }
+   }
+ 
+   // Allow alteration of the tree and config before we begin operations on it.
