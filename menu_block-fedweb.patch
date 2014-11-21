@@ -1,5 +1,5 @@
 diff --git a/menu_block.admin.inc b/menu_block.admin.inc
-index 992a0cc..46bf912 100644
+index 992a0cc..d477d52 100644
 --- a/menu_block.admin.inc
 +++ b/menu_block.admin.inc
 @@ -160,10 +160,12 @@ function menu_block_delete_submit($form, &$form_state) {
@@ -15,7 +15,7 @@ index 992a0cc..46bf912 100644
    variable_del("menu_block_{$delta}_expanded");
    variable_del("menu_block_{$delta}_sort");
  
-@@ -346,6 +348,24 @@ function menu_block_configure_form($form, &$form_state) {
+@@ -346,6 +348,12 @@ function menu_block_configure_form($form, &$form_state) {
      '#description' => t('The preferred menus used by <em>&lt;the menu selected by the page&gt;</em> can be customized on the <a href="!url">Menu block settings page</a>.', array('!url' => url('admin/config/user-interface/menu-block'))),
      '#attributes' => array('class' => array('menu-block-menu-name')),
    );
@@ -25,22 +25,10 @@ index 992a0cc..46bf912 100644
 +    '#title' => t('Additional CSS class name'),
 +    '#description' => t('Optionally assign a CSS class name in addition to <strong>menu-block-!delta</strong>.', array('!delta' => $form_state['values']['delta'])),
 +  );
-+  $form['class_name'] = array(
-+    '#type' => 'textfield',
-+    '#default_value' => $config['class_name'],
-+    '#title' => t('Additional CSS class name'),
-+    '#description' => t('Optionally assign a CSS class name in addition to <strong>menu-block-!delta</strong>.', array('!delta'=>$form_state['values']['delta'])),
-+  );
-+  $form['class_name'] = array(
-+    '#type' => 'textfield',
-+    '#default_value' => $config['class_name'],
-+    '#title' => t('Additional CSS class name'),
-+    '#description' => t('Optionally assign a CSS class name in addition to <strong>menu-block-!delta</strong>.', array('!delta'=>$form_state['values']['delta'])),
-+  );
    $form['level'] = array(
      '#type' => 'select',
      '#title' => t('Starting level'),
-@@ -379,6 +399,16 @@ function menu_block_configure_form($form, &$form_state) {
+@@ -379,6 +387,16 @@ function menu_block_configure_form($form, &$form_state) {
      '#description' => t('If the active menu item is deeper than the level specified above, the starting level will follow the active menu item. Otherwise, the starting level of the tree will remain fixed.'),
      '#element_validate' => array('menu_block_configure_form_follow_validate'),
    );
@@ -57,7 +45,7 @@ index 992a0cc..46bf912 100644
    $form['follow_parent'] = array(
      '#type' => 'select',
      '#title' => t('Starting level will be'),
-@@ -436,7 +466,7 @@ function menu_block_configure_form($form, &$form_state) {
+@@ -436,7 +454,7 @@ function menu_block_configure_form($form, &$form_state) {
    $form['menu-block-wrapper-close'] = array('#markup' => '</div>');
  
    // Set visibility of advanced options.
@@ -66,7 +54,7 @@ index 992a0cc..46bf912 100644
      $form[$key]['#states']['visible'][':input[name=display_options]'] = array('value' => 'advanced');
    }
    if ($config['title_link'] || $follow || $config['expanded'] || $config['sort'] || $config['parent_mlid']) {
-@@ -481,10 +511,12 @@ function _menu_block_block_save($delta = '', $edit = array()) {
+@@ -481,10 +499,12 @@ function _menu_block_block_save($delta = '', $edit = array()) {
      if (empty($config['exported_to_code'])) {
        variable_set("menu_block_{$delta}_title_link", $edit['title_link']);
        variable_set("menu_block_{$delta}_admin_title", $edit['admin_title']);
