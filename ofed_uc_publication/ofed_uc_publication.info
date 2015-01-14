@@ -10,6 +10,7 @@ dependencies[] = entityreference
 dependencies[] = features
 dependencies[] = file
 dependencies[] = i18n
+dependencies[] = i18n_node
 dependencies[] = image
 dependencies[] = metatag
 dependencies[] = node
