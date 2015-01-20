@@ -53,7 +53,66 @@ function ofed_uc_publication_deploy_install() {
   variable_set('uc_ct_string_quantity', 'Number of copies');
   variable_set('uc_ct_string_continue_shopping', 'Add more publications');
 
-  // To do: set up translated strings.
+  $current_realm = variable_get('variable_realm_list_language', array());   // Ubercart checkout settings
+  $realm_addition = array (
+    'uc_msg_order_submit',
+    'uc_msg_order_logged_in',
+    'uc_msg_order_existing_user',
+    'uc_msg_order_new_user',
+    'uc_msg_order_new_user_logged_in',
+    'uc_msg_continue_shopping',
+    'uc_cart_new_account_details',
+    'uc_checkout_instructions',
+    'uc_checkout_review_instructions'
+  );
+  $realm = array_merge($current_realm, $realm_addition);
+  variable_set('variable_realm_list_language', $realm);
+
+  // set up translated strings.
+  // cart messages
+  variable_realm_set('language', 'fr', 'uc_msg_order_submit', '<p>Merci. Votre demande a bien été enregistrée. Votre commande vous sera livrée par la poste dès que possible.</p><p>Options:</p>
+    <ul>
+      <li><p>retour aux <a href="/fr/publications/">publications</a></p></li>
+      <li><p>en savoir plus sur <a href="/fr/institut/">l\'Institut</a></p></li>
+      <li><p>découvrir nos <a href="/fr/domaines_action/">domaines d\'action</a></p></li>
+      <li><p>rester informé-e des <a href="">dernières nouvelles</a></p></li>
+    </ul>'
+  );
+  variable_realm_set('language', 'nl', 'uc_msg_order_submit', '<p>Bedankt. Uw aanvraag is goed aangekomen. Uw bestelling wordt zo snel mogelijk met de post geleverd.</p>
+    <ul>
+      <li><p>terug naar <a href="/nl/publicaties/">publicaties</a></p></li>
+      <li><p>meer weten over het <a href="/nl/organisatie/">Instituut</a></p></li>
+      <li><p>onze <a href="/nl/actiedomeinen/">actiedomeinen</a> ontdekken</p></li>
+      <li><p>op de hoogte blijven van het <a href="/nl/">laatste nieuws</a></p></li>
+    </ul>'
+  );
+  variable_realm_set('language', 'nl', 'uc_msg_order_logged_in', '');
+  variable_realm_set('language', 'fr', 'uc_msg_order_logged_in', '');
+
+  variable_realm_set('language', 'nl', 'uc_msg_order_existing_user', '');
+  variable_realm_set('language', 'fr', 'uc_msg_order_existing_user', '');
+
+  variable_realm_set('language', 'nl', 'uc_msg_order_new_user', '');
+  variable_realm_set('language', 'fr', 'uc_msg_order_new_user', '');
+
+  variable_realm_set('language', 'nl', 'uc_msg_order_new_user_logged_in', '');
+  variable_realm_set('language', 'fr', 'uc_msg_order_new_user_logged_in', '');
+
+  variable_realm_set('language', 'nl', 'uc_msg_continue_shopping', '');
+  variable_realm_set('language', 'fr', 'uc_msg_continue_shopping', '');
+
+  // publication settings
+  variable_set('i18n_node_extended_ofed_uc_publication', 12);
+  variable_set('i18n_node_options_ofed_uc_publication', array('current' => 'current', 'required' => 'required'));
+
+  // disable rules
+  $rules_config = rules_config_load('uc_checkout_customer_notification');
+  $rules_config->active = FALSE;
+  $rules_config->save();
+
+  $rules_config = rules_config_load('uc_checkout_admin_notification');
+  $rules_config->active = FALSE;
+  $rules_config->save();
 
   // Set up permissions.
   $roles = array();
